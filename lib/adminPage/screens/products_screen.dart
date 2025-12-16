@@ -1,0 +1,289 @@
+import 'package:flutter/material.dart';
+import '../config/admin_theme.dart';
+import '../../models/product.dart';
+
+/// Products Management Screen
+class ProductsScreen extends StatefulWidget {
+  const ProductsScreen({super.key});
+
+  @override
+  State<ProductsScreen> createState() => _ProductsScreenState();
+}
+
+class _ProductsScreenState extends State<ProductsScreen> {
+  final _searchController = TextEditingController();
+  List<Product> _products = List.from(Product.demoProducts);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Products',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AdminTheme.textPrimary,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _showAddProductDialog,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Product'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Search
+          SizedBox(
+            width: 300,
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search products...',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Products Table
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AdminTheme.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SingleChildScrollView(
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('Product')),
+                    DataColumn(label: Text('Category')),
+                    DataColumn(label: Text('Price')),
+                    DataColumn(label: Text('Stock')),
+                    DataColumn(label: Text('Rating')),
+                    DataColumn(label: Text('Actions')),
+                  ],
+                  rows:
+                      _products
+                          .where(
+                            (p) => p.name.toLowerCase().contains(
+                              _searchController.text.toLowerCase(),
+                            ),
+                          )
+                          .map((product) => _buildProductRow(product))
+                          .toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DataRow _buildProductRow(Product product) {
+    return DataRow(
+      cells: [
+        DataCell(
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  product.imageUrl,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (_, __, ___) => Container(
+                        width: 48,
+                        height: 48,
+                        color: AdminTheme.card,
+                        child: const Icon(
+                          Icons.image,
+                          color: AdminTheme.textSecondary,
+                        ),
+                      ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  product.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AdminTheme.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
+        DataCell(Text(product.category)),
+        DataCell(Text('\$${product.price.toStringAsFixed(0)}')),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color:
+                  product.stock > 10
+                      ? AdminTheme.success.withOpacity(0.1)
+                      : AdminTheme.warning.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${product.stock}',
+              style: TextStyle(
+                color:
+                    product.stock > 10
+                        ? AdminTheme.success
+                        : AdminTheme.warning,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        DataCell(
+          Row(
+            children: [
+              const Icon(Icons.star, color: AdminTheme.warning, size: 16),
+              const SizedBox(width: 4),
+              Text(product.rating.toStringAsFixed(1)),
+            ],
+          ),
+        ),
+        DataCell(
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, color: AdminTheme.info),
+                onPressed: () => _showEditProductDialog(product),
+                tooltip: 'Edit',
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AdminTheme.error),
+                onPressed: () => _deleteProduct(product),
+                tooltip: 'Delete',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddProductDialog() {
+    _showProductDialog(null);
+  }
+
+  void _showEditProductDialog(Product product) {
+    _showProductDialog(product);
+  }
+
+  void _showProductDialog(Product? product) {
+    final isEditing = product != null;
+    final nameController = TextEditingController(text: product?.name ?? '');
+    final priceController = TextEditingController(
+      text: product?.price.toString() ?? '',
+    );
+    final stockController = TextEditingController(
+      text: product?.stock.toString() ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AdminTheme.surface,
+            title: Text(isEditing ? 'Edit Product' : 'Add Product'),
+            content: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Product Name',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: priceController,
+                    decoration: const InputDecoration(labelText: 'Price'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: stockController,
+                    decoration: const InputDecoration(labelText: 'Stock'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Demo: just close dialog
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isEditing ? 'Product updated!' : 'Product added!',
+                      ),
+                    ),
+                  );
+                },
+                child: Text(isEditing ? 'Update' : 'Add'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _deleteProduct(Product product) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AdminTheme.surface,
+            title: const Text('Delete Product'),
+            content: Text('Are you sure you want to delete "${product.name}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AdminTheme.error,
+                ),
+                onPressed: () {
+                  setState(
+                    () => _products.removeWhere((p) => p.id == product.id),
+                  );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Product deleted!')),
+                  );
+                },
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+  }
+}
