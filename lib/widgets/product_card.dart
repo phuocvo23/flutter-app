@@ -3,7 +3,7 @@ import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/product.dart';
 
-/// Product Card - Apple-inspired minimal design
+/// Product Card - Apple-inspired minimal, overflow-safe design
 class ProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback? onTap;
@@ -65,161 +65,143 @@ class _ProductCardState extends State<ProductCard>
             borderRadius: AppStyles.borderRadiusLg,
             boxShadow: AppStyles.shadowSm,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image
-              Expanded(
-                flex: 3,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                      child: Container(
-                        width: double.infinity,
-                        color: AppColors.surface,
-                        child: Image.network(
-                          widget.product.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder:
-                              (_, __, ___) => const Center(
-                                child: Icon(
-                                  Icons.image_outlined,
-                                  size: 40,
-                                  color: AppColors.textHint,
+          clipBehavior: Clip.antiAlias,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final imageHeight = constraints.maxHeight * 0.6;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image
+                  SizedBox(
+                    height: imageHeight,
+                    width: double.infinity,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Container(
+                          color: AppColors.surface,
+                          child: Image.network(
+                            widget.product.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => const Center(
+                                  child: Icon(
+                                    Icons.image_outlined,
+                                    size: 32,
+                                    color: AppColors.textHint,
+                                  ),
+                                ),
+                          ),
+                        ),
+                        // Badge
+                        if (widget.product.isNew || widget.product.hasDiscount)
+                          Positioned(
+                            top: 6,
+                            left: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    widget.product.isNew
+                                        ? AppColors.info
+                                        : AppColors.error,
+                                borderRadius: AppStyles.borderRadiusFull,
+                              ),
+                              child: Text(
+                                widget.product.isNew
+                                    ? 'NEW'
+                                    : '-${widget.product.discountPercent}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                        ),
-                      ),
-                    ),
-                    // Badge
-                    if (widget.product.isNew || widget.product.hasDiscount)
-                      Positioned(
-                        top: 10,
-                        left: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color:
-                                widget.product.isNew
-                                    ? AppColors.info
-                                    : AppColors.error,
-                            borderRadius: AppStyles.borderRadiusFull,
-                          ),
-                          child: Text(
-                            widget.product.isNew
-                                ? 'NEW'
-                                : '-${widget.product.discountPercent}%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                        // Add to cart
+                        Positioned(
+                          bottom: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: widget.onAddToCart,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    // Add to cart
-                    Positioned(
-                      bottom: 10,
-                      right: 10,
-                      child: GestureDetector(
-                        onTap: widget.onAddToCart,
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: AppStyles.shadowMd,
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              // Info
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                          color: AppColors.textPrimary,
-                          height: 1.3,
-                        ),
-                      ),
-                      const Spacer(),
-                      // Rating
-                      Row(
+                  ),
+                  // Info
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 14,
-                            color: AppColors.warning,
-                          ),
-                          const SizedBox(width: 4),
+                          // Name - max 2 lines
                           Text(
-                            widget.product.rating.toStringAsFixed(1),
+                            widget.product.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                              color: AppColors.textPrimary,
+                              height: 1.2,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      // Price
-                      Row(
-                        children: [
-                          Text(
-                            _formatPrice(widget.product.price),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          if (widget.product.hasDiscount &&
-                              widget.product.originalPrice != null) ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              _formatPrice(widget.product.originalPrice!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textHint,
-                                decoration: TextDecoration.lineThrough,
+                          const Spacer(),
+                          // Rating + Price row
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 10,
+                                color: AppColors.warning,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 2),
+                              Text(
+                                widget.product.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                _formatPrice(widget.product.price),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ),
