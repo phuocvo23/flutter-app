@@ -3,7 +3,7 @@ import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/category.dart';
 
-/// Category Card - Apple-inspired minimal design
+/// Category Card - Apple-inspired minimal design with fixed overflow
 class CategoryCard extends StatefulWidget {
   final Category category;
   final VoidCallback? onTap;
@@ -67,13 +67,13 @@ class _CategoryCardState extends State<CategoryCard>
           return Transform.scale(scale: _scaleAnimation.value, child: child);
         },
         child: SizedBox(
-          width: 80,
+          width: 72,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.1),
                   shape: BoxShape.circle,
@@ -81,17 +81,17 @@ class _CategoryCardState extends State<CategoryCard>
                 child: Icon(
                   widget.category.icon,
                   color: AppColors.primary,
-                  size: 28,
+                  size: 24,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 widget.category.name,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                   height: 1.2,
@@ -120,69 +120,65 @@ class _CategoryCardState extends State<CategoryCard>
             borderRadius: AppStyles.borderRadiusLg,
             boxShadow: AppStyles.shadowSm,
           ),
-          child: ClipRRect(
-            borderRadius: AppStyles.borderRadiusLg,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Image
-                Image.network(
-                  widget.category.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (_, __, ___) => Container(
-                        color: AppColors.primary.withOpacity(0.1),
-                        child: Icon(
-                          widget.category.icon,
-                          size: 48,
-                          color: AppColors.primary,
-                        ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Image
+              Image.network(
+                widget.category.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (_, __, ___) => Container(
+                      color: AppColors.primary.withOpacity(0.1),
+                      child: Icon(
+                        widget.category.icon,
+                        size: 40,
+                        color: AppColors.primary,
                       ),
-                ),
-                // Gradient overlay
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
-                      ],
                     ),
+              ),
+              // Gradient overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
                   ),
                 ),
-                // Content
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.category.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
-                        ),
+              ),
+              // Content
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.category.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${widget.category.productCount} sản phẩm',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 12,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${widget.category.productCount} sp',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 11,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
