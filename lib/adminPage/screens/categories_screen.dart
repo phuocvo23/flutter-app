@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/admin_theme.dart';
 import '../../models/category.dart';
+import '../../services/category_service.dart';
 
 /// Categories Management Screen
 class CategoriesScreen extends StatefulWidget {
@@ -11,7 +12,7 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
-  List<Category> _categories = List.from(Category.demoCategories);
+  final CategoryService _categoryService = CategoryService();
 
   @override
   Widget build(BuildContext context) {
@@ -43,16 +44,29 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
           // Categories Grid
           Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.2,
-              ),
-              itemCount: _categories.length,
-              itemBuilder:
-                  (context, index) => _buildCategoryCard(_categories[index]),
+            child: StreamBuilder<List<Category>>(
+              stream: _categoryService.getAll(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('No categories found'));
+                }
+
+                final categories = snapshot.data!;
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: categories.length,
+                  itemBuilder:
+                      (context, index) => _buildCategoryCard(categories[index]),
+                );
+              },
             ),
           ),
         ],
@@ -208,10 +222,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AdminTheme.error,
                 ),
-                onPressed: () {
-                  setState(
-                    () => _categories.removeWhere((c) => c.id == category.id),
-                  );
+                onPressed: () async {
+                  await _categoryService.delete(category.id);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Category deleted!')),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
-import 'home_screen.dart';
+import 'login_screen.dart';
 
 /// Splash Screen - Apple-inspired smooth animation
 class SplashScreen extends StatefulWidget {
@@ -57,7 +57,7 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder:
-                (context, animation, secondaryAnimation) => const HomeScreen(),
+                (context, animation, secondaryAnimation) => const LoginScreen(),
             transitionsBuilder: (
               context,
               animation,

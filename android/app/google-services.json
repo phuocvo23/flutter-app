@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "440466092252",
+    "project_id": "voduyphuoc-shop",
+    "storage_bucket": "voduyphuoc-shop.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440466092252:android:b08db12c80171e00590419",
+        "android_client_info": {
+          "package_name": "com.example.voduyphuoc_0858"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "440466092252-2m57tltba70ktk1m1fnppc6tb3qbshan.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqLOtt0xi5mVcb7ZQIbbbMMB2FaqVR4TM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "440466092252-2m57tltba70ktk1m1fnppc6tb3qbshan.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
