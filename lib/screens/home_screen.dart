@@ -4,6 +4,8 @@ import '../config/app_styles.dart';
 import '../models/product.dart';
 import '../models/category.dart';
 import '../models/cart_item.dart';
+import '../services/product_service.dart';
+import '../services/category_service.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_card.dart';
 import '../widgets/custom_bottom_nav.dart';
@@ -25,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+
+  final ProductService _productService = ProductService();
+  final CategoryService _categoryService = CategoryService();
 
   final List<Widget> _screens = [];
 
@@ -238,31 +243,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Categories Horizontal Scroll
+          // Categories Horizontal Scroll - Firestore
           SliverToBoxAdapter(
             child: SizedBox(
               height: 100,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: Category.demoCategories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final category = Category.demoCategories[index];
-                  return CategoryCard(
-                    category: category,
-                    isCompact: true,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => ProductListScreen(
-                                categoryId: category.id,
-                                categoryName: category.name,
-                              ),
-                        ),
+              child: StreamBuilder<List<Category>>(
+                stream: _categoryService.getAll(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('Không có danh mục'));
+                  }
+                  final categories = snapshot.data!;
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: categories.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      return CategoryCard(
+                        category: category,
+                        isCompact: true,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => ProductListScreen(
+                                    categoryId: category.id,
+                                    categoryName: category.name,
+                                  ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );
@@ -279,24 +296,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Featured Products Grid
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.68,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final product = Product.featuredProducts[index];
-                return ProductCard(
-                  product: product,
-                  onTap: () => _navigateToProduct(product),
-                  onAddToCart: () => _addToCart(product),
+          // Featured Products Grid - Firestore
+          SliverToBoxAdapter(
+            child: StreamBuilder<List<Product>>(
+              stream: _productService.getFeatured(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: Text('Không có sản phẩm nổi bật')),
+                  );
+                }
+                final products = snapshot.data!;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.68,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return ProductCard(
+                        product: product,
+                        onTap: () => _navigateToProduct(product),
+                        onAddToCart: () => _addToCart(product),
+                      );
+                    },
+                  ),
                 );
-              }, childCount: Product.featuredProducts.length),
+              },
             ),
           ),
 
@@ -308,24 +349,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // New Arrivals Grid
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.68,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final product = Product.newArrivals[index];
-                return ProductCard(
-                  product: product,
-                  onTap: () => _navigateToProduct(product),
-                  onAddToCart: () => _addToCart(product),
+          // New Arrivals Grid - Firestore
+          SliverToBoxAdapter(
+            child: StreamBuilder<List<Product>>(
+              stream: _productService.getNewArrivals(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: Text('Không có sản phẩm mới')),
+                  );
+                }
+                final products = snapshot.data!;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.68,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return ProductCard(
+                        product: product,
+                        onTap: () => _navigateToProduct(product),
+                        onAddToCart: () => _addToCart(product),
+                      );
+                    },
+                  ),
                 );
-              }, childCount: Product.newArrivals.length),
+              },
             ),
           ),
         ],
@@ -351,30 +416,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           Expanded(
-            child: GridView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.4,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: Category.demoCategories.length,
-              itemBuilder: (context, index) {
-                final category = Category.demoCategories[index];
-                return CategoryCard(
-                  category: category,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (_) => ProductListScreen(
-                              categoryId: category.id,
-                              categoryName: category.name,
-                            ),
-                      ),
+            child: StreamBuilder<List<Category>>(
+              stream: _categoryService.getAll(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('Không có danh mục'));
+                }
+                final categories = snapshot.data!;
+                return GridView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.4,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final category = categories[index];
+                    return CategoryCard(
+                      category: category,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (_) => ProductListScreen(
+                                  categoryId: category.id,
+                                  categoryName: category.name,
+                                ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );

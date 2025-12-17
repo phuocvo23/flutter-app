@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/admin_theme.dart';
 import '../../models/product.dart';
+import '../../services/product_service.dart';
 
 /// Products Management Screen
 class ProductsScreen extends StatefulWidget {
@@ -12,7 +13,7 @@ class ProductsScreen extends StatefulWidget {
 
 class _ProductsScreenState extends State<ProductsScreen> {
   final _searchController = TextEditingController();
-  List<Product> _products = List.from(Product.demoProducts);
+  final ProductService _productService = ProductService();
 
   @override
   Widget build(BuildContext context) {
@@ -63,26 +64,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 color: AdminTheme.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Product')),
-                    DataColumn(label: Text('Category')),
-                    DataColumn(label: Text('Price')),
-                    DataColumn(label: Text('Stock')),
-                    DataColumn(label: Text('Rating')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows:
-                      _products
+              child: StreamBuilder<List<Product>>(
+                stream: _productService.getAll(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No products found'));
+                  }
+
+                  final products =
+                      snapshot.data!
                           .where(
                             (p) => p.name.toLowerCase().contains(
                               _searchController.text.toLowerCase(),
                             ),
                           )
-                          .map((product) => _buildProductRow(product))
-                          .toList(),
-                ),
+                          .toList();
+
+                  return SingleChildScrollView(
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('Product')),
+                        DataColumn(label: Text('Category')),
+                        DataColumn(label: Text('Price')),
+                        DataColumn(label: Text('Stock')),
+                        DataColumn(label: Text('Rating')),
+                        DataColumn(label: Text('Actions')),
+                      ],
+                      rows:
+                          products
+                              .map((product) => _buildProductRow(product))
+                              .toList(),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -237,7 +254,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  // Demo: just close dialog
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -271,10 +287,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AdminTheme.error,
                 ),
-                onPressed: () {
-                  setState(
-                    () => _products.removeWhere((p) => p.id == product.id),
-                  );
+                onPressed: () async {
+                  await _productService.delete(product.id);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Product deleted!')),
