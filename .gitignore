@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Security - Firebase Rules (không commit lên git)
+firebase_rules.md
+FIREBASE_RULES.md
