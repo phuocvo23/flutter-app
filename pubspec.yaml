@@ -25,6 +25,10 @@ dependencies:
   shared_preferences: ^2.5.4
   qr_flutter: ^4.1.0
   url_launcher: ^6.3.2
+  firebase_storage: ^12.4.10
+  desktop_drop: ^0.7.0
+  super_clipboard: ^0.9.1
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:

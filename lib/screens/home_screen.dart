@@ -15,6 +15,8 @@ import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
+import '../models/hero_banner.dart';
+import '../services/banner_service.dart';
 
 /// Màn hình chính - Apple-inspired design
 class HomeScreen extends StatefulWidget {
@@ -32,8 +34,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   final ProductService _productService = ProductService();
   final CategoryService _categoryService = CategoryService();
+  final BannerService _bannerService = BannerService();
 
-  final List<Widget> _screens = [];
+  // Cache home and categories content
+  Widget? _homeContent;
+  Widget? _categoriesContent;
+
+  List<Widget> get _screens => [
+    _homeContent ?? _buildHomeContent(),
+    _categoriesContent ?? _buildCategoriesContent(),
+    const CartScreen(), // Fresh each time - not cached
+    const ProfileScreen(),
+  ];
 
   @override
   void initState() {
@@ -50,12 +62,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _fadeController.forward();
 
-    _screens.addAll([
-      _buildHomeContent(),
-      _buildCategoriesContent(),
-      const CartScreen(),
-      const ProfileScreen(),
-    ]);
+    // Initialize cached screens
+    _homeContent = _buildHomeContent();
+    _categoriesContent = _buildCategoriesContent();
   }
 
   @override
@@ -68,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _onTabTapped(int index) {
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
     );
   }
@@ -80,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         opacity: _fadeAnimation,
         child: PageView(
           controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(), // Disable swipe
+          physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (index) {
             setState(() => _currentIndex = index);
           },
@@ -134,11 +143,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     badgeCount: CartState.itemCount,
                     onTap: () => _onTabTapped(2),
                   ),
-                  const SizedBox(width: 8),
-                  _buildIconButton(
-                    icon: Icons.notifications_outlined,
-                    onTap: () {},
-                  ),
                 ],
               ),
             ),
@@ -160,97 +164,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Banner - Simple, no overflow
+          // Dynamic Banner Carousel
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (_) => const ProductListScreen(
-                            categoryName: 'Giáp Bảo Hộ',
-                          ),
-                    ),
-                  );
+              child: StreamBuilder<List<HeroBanner>>(
+                stream: _bannerService.getActiveBanners(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return _buildDefaultBanner();
+                  }
+                  return _buildBannerCarousel(snapshot.data!);
                 },
-                child: Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: AppStyles.borderRadiusXl,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    children: [
-                      // Pattern
-                      Positioned(
-                        right: -10,
-                        bottom: -10,
-                        child: Icon(
-                          Icons.sports_motorsports,
-                          size: 100,
-                          color: Colors.white.withOpacity(0.12),
-                        ),
-                      ),
-                      // Content - Simple row
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 20,
-                        ),
-                        child: Row(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.max,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: AppStyles.borderRadiusFull,
-                                  ),
-                                  child: const Text(
-                                    'GIẢM 50%',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Đồ bảo hộ',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'Xem ngay →',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ),
@@ -578,5 +503,168 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Widget _buildDefaultBanner() {
+    return Container(
+      height: 140,
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: AppStyles.borderRadiusXl,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned(
+            right: -10,
+            bottom: -10,
+            child: Icon(
+              Icons.sports_motorsports,
+              size: 100,
+              color: Colors.white.withOpacity(0.12),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: AppStyles.borderRadiusFull,
+                  ),
+                  child: const Text(
+                    'FUOT SHOP',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Chào mừng bạn!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Text(
+                  'Khám phá sản phẩm phượt →',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBannerCarousel(List<HeroBanner> banners) {
+    return SizedBox(
+      height: 160,
+      child: PageView.builder(
+        itemCount: banners.length,
+        controller: PageController(viewportFraction: 1.0),
+        itemBuilder: (context, index) {
+          final banner = banners[index];
+          return GestureDetector(
+            onTap: () => _handleBannerTap(banner),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                borderRadius: AppStyles.borderRadiusXl,
+                image: DecorationImage(
+                  image: NetworkImage(banner.imageUrl),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: AppStyles.borderRadiusXl,
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                  ),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      banner.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (banner.subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        banner.subtitle,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                    if (banner.buttonText.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          banner.buttonText,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _handleBannerTap(HeroBanner banner) {
+    if (banner.linkType == 'category' && banner.linkValue != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductListScreen(categoryName: banner.linkValue!),
+        ),
+      );
+    } else if (banner.linkType == 'product' && banner.linkValue != null) {
+      // Could navigate to product detail if we have product ID
+    } else if (banner.linkType == 'url' && banner.linkValue != null) {
+      // Could launch external URL
+    }
   }
 }

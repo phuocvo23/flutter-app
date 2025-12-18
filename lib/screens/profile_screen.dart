@@ -3,6 +3,7 @@ import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../services/auth_service.dart';
 import '../services/wishlist_service.dart';
+import '../services/order_service.dart';
 import 'login_screen.dart';
 import 'my_orders_screen.dart';
 import 'wishlist_screen.dart';
@@ -18,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
   final WishlistService _wishlistService = WishlistService();
+  final OrderService _orderService = OrderService();
 
   Future<void> _handleSignOut() async {
     final confirm = await showDialog<bool>(
@@ -63,12 +65,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Tài khoản'),
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -177,10 +173,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildStatCard(
-                  icon: Icons.inventory_2_outlined,
-                  value: '0',
-                  label: 'Đơn hàng',
+                child: StreamBuilder<int>(
+                  stream: _orderService.getOrderCountStream(
+                    _authService.currentUser?.uid ?? '',
+                  ),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return _buildStatCard(
+                      icon: Icons.inventory_2_outlined,
+                      value: count.toString(),
+                      label: 'Đơn hàng',
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -195,14 +199,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       label: 'Yêu thích',
                     );
                   },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.local_offer_outlined,
-                  value: '0',
-                  label: 'Voucher',
                 ),
               ),
             ],
@@ -233,28 +229,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           ),
           _buildMenuItem(
-            icon: Icons.payment_outlined,
-            title: 'Phương thức thanh toán',
-            subtitle: 'Thẻ ngân hàng, ví điện tử',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            icon: Icons.notifications_outlined,
-            title: 'Thông báo',
-            subtitle: 'Cài đặt thông báo',
-            onTap: () {},
-          ),
-          _buildMenuItem(
             icon: Icons.help_outline,
             title: 'Trung tâm hỗ trợ',
             subtitle: 'FAQ, Liên hệ',
-            onTap: () {},
+            onTap: () => _showComingSoon(),
           ),
           _buildMenuItem(
             icon: Icons.info_outline,
             title: 'Về Fuot Shop',
             subtitle: 'Phiên bản 1.0.0',
-            onTap: () {},
+            onTap: () => _showAboutDialog(),
           ),
 
           const SizedBox(height: 24),
@@ -292,13 +276,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildSocialButton(Icons.facebook, () {}),
+              _buildSocialButton(Icons.facebook, _showComingSoon),
               const SizedBox(width: 16),
-              _buildSocialButton(Icons.camera_alt, () {}),
+              _buildSocialButton(Icons.camera_alt, _showComingSoon),
               const SizedBox(width: 16),
-              _buildSocialButton(Icons.play_circle_filled, () {}),
+              _buildSocialButton(Icons.play_circle_filled, _showComingSoon),
               const SizedBox(width: 16),
-              _buildSocialButton(Icons.web, () {}),
+              _buildSocialButton(Icons.web, _showComingSoon),
             ],
           ),
           const SizedBox(height: 32),
@@ -347,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: _showComingSoon,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
@@ -458,6 +442,160 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Icon(icon, color: AppColors.primary),
       ),
+    );
+  }
+
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tính năng này hiện chưa hoạt động'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                // Logo
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.sports_motorsports,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Fuot Shop',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Text(
+                  'Phiên bản 1.0.0',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    children: [
+                      Text(
+                        '📱 Đồ án môn học',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Phát triển ứng dụng Android với Flutter',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const _AboutInfoRow(
+                  icon: Icons.school_outlined,
+                  label: 'Giảng viên hướng dẫn',
+                  value: 'ThS. Bùi Phú Khuyên',
+                ),
+                const SizedBox(height: 8),
+                const _AboutInfoRow(
+                  icon: Icons.person_outline,
+                  label: 'Sinh viên thực hiện',
+                  value: 'Võ Duy Phước',
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '"Ứng dụng thương mại điện tử chuyên cung cấp đồ dùng và phụ kiện dành cho dân phượt, được xây dựng với đam mê và tâm huyết."',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textSecondary.withOpacity(0.8),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Đóng'),
+              ),
+            ],
+          ),
+    );
+  }
+}
+
+class _AboutInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _AboutInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 10, color: AppColors.textHint),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

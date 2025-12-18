@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_styles.dart';
 
 /// Apple-inspired theme - Clean, minimal, elegant
 class AppTheme {
   AppTheme._();
+
+  // Cache text theme for performance
+  static final _baseTextTheme = GoogleFonts.montserratTextTheme();
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -170,66 +174,66 @@ class AppTheme {
         elevation: 0,
       ),
 
-      // Text Theme - Apple-like typography
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
+      // Text Theme - Montserrat typography
+      textTheme: _baseTextTheme.copyWith(
+        displayLarge: _baseTextTheme.displayLarge?.copyWith(
           fontSize: 34,
           fontWeight: FontWeight.bold,
           letterSpacing: -0.5,
           color: AppColors.textPrimary,
         ),
-        displayMedium: TextStyle(
+        displayMedium: _baseTextTheme.displayMedium?.copyWith(
           fontSize: 28,
           fontWeight: FontWeight.bold,
           letterSpacing: -0.4,
           color: AppColors.textPrimary,
         ),
-        headlineLarge: TextStyle(
+        headlineLarge: _baseTextTheme.headlineLarge?.copyWith(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
           color: AppColors.textPrimary,
         ),
-        headlineMedium: TextStyle(
+        headlineMedium: _baseTextTheme.headlineMedium?.copyWith(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
           color: AppColors.textPrimary,
         ),
-        titleLarge: TextStyle(
+        titleLarge: _baseTextTheme.titleLarge?.copyWith(
           fontSize: 17,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
           color: AppColors.textPrimary,
         ),
-        titleMedium: TextStyle(
+        titleMedium: _baseTextTheme.titleMedium?.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
-        bodyLarge: TextStyle(
+        bodyLarge: _baseTextTheme.bodyLarge?.copyWith(
           fontSize: 17,
           fontWeight: FontWeight.normal,
           letterSpacing: -0.1,
           color: AppColors.textPrimary,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: _baseTextTheme.bodyMedium?.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.normal,
           color: AppColors.textSecondary,
         ),
-        labelLarge: TextStyle(
+        labelLarge: _baseTextTheme.labelLarge?.copyWith(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.1,
           color: AppColors.textPrimary,
         ),
-        labelMedium: TextStyle(
+        labelMedium: _baseTextTheme.labelMedium?.copyWith(
           fontSize: 13,
           fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
         ),
-        labelSmall: TextStyle(
+        labelSmall: _baseTextTheme.labelSmall?.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.1,

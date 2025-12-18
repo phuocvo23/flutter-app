@@ -130,8 +130,8 @@ class CartState {
     }
   }
 
-  static void clear() {
+  static Future<void> clear() async {
     _items.clear();
-    _saveToStorage();
+    await _saveToStorage();
   }
 }

@@ -27,10 +27,25 @@ class _ProductListScreenState extends State<ProductListScreen> {
       appBar: AppBar(
         title: Text(widget.categoryName),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.favorite_border)),
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.shopping_cart_outlined),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Tính năng này hiện chưa hoạt động'),
+                ),
+              );
+            },
+            icon: const Icon(Icons.favorite_border),
+          ),
+          IconButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Tính năng này hiện chưa hoạt động'),
+                ),
+              );
+            },
+            icon: const Icon(Icons.filter_list),
           ),
         ],
       ),

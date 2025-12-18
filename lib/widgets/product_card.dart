@@ -220,7 +220,7 @@ class _ProductCardState extends State<ProductCard>
                               Text(
                                 _formatPrice(widget.product.price),
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.primary,
                                 ),

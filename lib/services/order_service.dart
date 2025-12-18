@@ -103,6 +103,18 @@ class OrderService {
     return snapshot.count ?? 0;
   }
 
+  /// Lấy số lượng orders theo customerId (Stream)
+  Stream<int> getOrderCountStream(String customerId) {
+    if (customerId.isEmpty) {
+      return Stream.value(0);
+    }
+    return _firestore
+        .collection(_collection)
+        .where('customerId', isEqualTo: customerId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   /// Lấy recent orders (giới hạn số lượng)
   Stream<List<Order>> getRecent({int limit = 5}) {
     return _firestore

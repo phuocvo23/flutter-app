@@ -80,13 +80,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
+              maxLength: 10,
               decoration: const InputDecoration(
                 labelText: 'Số điện thoại',
                 prefixIcon: Icon(Icons.phone_outlined),
+                counterText: '', // Hide counter
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Vui lòng nhập số điện thoại';
+                }
+                if (value.length != 10) {
+                  return 'Số điện thoại phải có đúng 10 số';
+                }
+                if (!value.startsWith('0')) {
+                  return 'Số điện thoại phải bắt đầu bằng số 0';
+                }
+                if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                  return 'Số điện thoại chỉ được chứa chữ số';
                 }
                 return null;
               },
@@ -434,8 +445,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Save to Firestore
       final orderId = await _orderService.add(order);
 
-      // Clear cart after successful order
-      CartState.clear();
+      // Calculate total BEFORE clearing cart
+      final totalAmount = _calculateTotal();
+
+      // Clear cart after successful order (await to ensure storage is updated)
+      await CartState.clear();
 
       if (mounted) {
         // Use pushAndRemoveUntil to prevent going back to checkout
@@ -450,7 +464,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   address: _addressController.text,
                   paymentMethod: _selectedPayment,
                   shippingMethod: _selectedShipping,
-                  total: _calculateTotal(),
+                  total: totalAmount, // Use pre-calculated total
                 ),
           ),
           (route) => route.isFirst, // Keep only the first route (HomeScreen)
