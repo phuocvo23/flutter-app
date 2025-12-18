@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../config/admin_theme.dart';
 import '../widgets/admin_sidebar.dart';
 import '../widgets/stat_card.dart';
+import '../../models/order.dart';
+import '../../services/order_service.dart';
+import '../../services/product_service.dart';
+import '../../services/category_service.dart';
+import '../../services/user_service.dart';
 import 'products_screen.dart';
 import 'categories_screen.dart';
 import 'orders_screen.dart';
@@ -17,6 +23,10 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+
+  final OrderService _orderService = OrderService();
+  final ProductService _productService = ProductService();
+  final UserService _userService = UserService();
 
   @override
   Widget build(BuildContext context) {
@@ -87,38 +97,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 childAspectRatio: 1.6,
-                children: const [
-                  StatCard(
-                    icon: Icons.attach_money,
-                    title: 'Total Revenue',
-                    value: '\$45,231',
-                    change: '+12.5%',
-                    isPositive: true,
-                    color: AdminTheme.success,
+                children: [
+                  // Total Revenue
+                  FutureBuilder<double>(
+                    future: _orderService.getTotalRevenue(),
+                    builder: (context, snapshot) {
+                      final revenue = snapshot.data ?? 0;
+                      return StatCard(
+                        icon: Icons.attach_money,
+                        title: 'Total Revenue',
+                        value: '₫${NumberFormat.compact().format(revenue)}',
+                        change: '+12.5%',
+                        isPositive: true,
+                        color: AdminTheme.success,
+                      );
+                    },
                   ),
-                  StatCard(
-                    icon: Icons.shopping_cart,
-                    title: 'Total Orders',
-                    value: '1,234',
-                    change: '+8.2%',
-                    isPositive: true,
-                    color: AdminTheme.info,
+                  // Total Orders
+                  FutureBuilder<int>(
+                    future: _orderService.getOrderCount(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      return StatCard(
+                        icon: Icons.shopping_cart,
+                        title: 'Total Orders',
+                        value: '$count',
+                        change: '+8.2%',
+                        isPositive: true,
+                        color: AdminTheme.info,
+                      );
+                    },
                   ),
-                  StatCard(
-                    icon: Icons.inventory_2,
-                    title: 'Products',
-                    value: '156',
-                    change: '+3',
-                    isPositive: true,
-                    color: AdminTheme.warning,
+                  // Products count
+                  StreamBuilder(
+                    stream: _productService.getAll(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data?.length ?? 0;
+                      return StatCard(
+                        icon: Icons.inventory_2,
+                        title: 'Products',
+                        value: '$count',
+                        change: '+3',
+                        isPositive: true,
+                        color: AdminTheme.warning,
+                      );
+                    },
                   ),
-                  StatCard(
-                    icon: Icons.people,
-                    title: 'Customers',
-                    value: '2,451',
-                    change: '+5.1%',
-                    isPositive: true,
-                    color: AdminTheme.primary,
+                  // Customers count
+                  FutureBuilder<int>(
+                    future: _userService.getUserCount(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      return StatCard(
+                        icon: Icons.people,
+                        title: 'Customers',
+                        value: '$count',
+                        change: '+5.1%',
+                        isPositive: true,
+                        color: AdminTheme.primary,
+                      );
+                    },
                   ),
                 ],
               );
@@ -154,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildOrdersTable(),
+                _buildRecentOrdersTable(),
               ],
             ),
           ),
@@ -163,79 +201,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildOrdersTable() {
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(1),
-        1: FlexColumnWidth(2),
-        2: FlexColumnWidth(1.5),
-        3: FlexColumnWidth(1),
-        4: FlexColumnWidth(1),
-      },
-      children: [
-        // Header
-        TableRow(
-          decoration: BoxDecoration(
-            color: AdminTheme.card,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          children: const [
-            _TableCell(text: 'Order ID', isHeader: true),
-            _TableCell(text: 'Customer', isHeader: true),
-            _TableCell(text: 'Date', isHeader: true),
-            _TableCell(text: 'Amount', isHeader: true),
-            _TableCell(text: 'Status', isHeader: true),
+  Widget _buildRecentOrdersTable() {
+    return StreamBuilder<List<Order>>(
+      stream: _orderService.getRecent(limit: 5),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('No recent orders'),
+            ),
+          );
+        }
+
+        final orders = snapshot.data!;
+        return Table(
+          columnWidths: const {
+            0: FlexColumnWidth(1),
+            1: FlexColumnWidth(2),
+            2: FlexColumnWidth(1.5),
+            3: FlexColumnWidth(1),
+            4: FlexColumnWidth(1),
+          },
+          children: [
+            // Header
+            TableRow(
+              decoration: BoxDecoration(
+                color: AdminTheme.card,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              children: const [
+                _TableCell(text: 'Order ID', isHeader: true),
+                _TableCell(text: 'Customer', isHeader: true),
+                _TableCell(text: 'Date', isHeader: true),
+                _TableCell(text: 'Amount', isHeader: true),
+                _TableCell(text: 'Status', isHeader: true),
+              ],
+            ),
+            // Data rows
+            ...orders.map((order) => _buildOrderRow(order)),
           ],
-        ),
-        // Data rows
-        _buildOrderRow(
-          '#1234',
-          'John Doe',
-          'Dec 15, 2024',
-          '\$150.00',
-          'Completed',
-        ),
-        _buildOrderRow(
-          '#1233',
-          'Jane Smith',
-          'Dec 14, 2024',
-          '\$89.50',
-          'Pending',
-        ),
-        _buildOrderRow(
-          '#1232',
-          'Mike Johnson',
-          'Dec 14, 2024',
-          '\$234.00',
-          'Shipping',
-        ),
-        _buildOrderRow(
-          '#1231',
-          'Sarah Wilson',
-          'Dec 13, 2024',
-          '\$67.00',
-          'Completed',
-        ),
-        _buildOrderRow(
-          '#1230',
-          'Tom Brown',
-          'Dec 13, 2024',
-          '\$412.00',
-          'Completed',
-        ),
-      ],
+        );
+      },
     );
   }
 
-  TableRow _buildOrderRow(
-    String id,
-    String customer,
-    String date,
-    String amount,
-    String status,
-  ) {
+  TableRow _buildOrderRow(Order order) {
+    final dateFormat = DateFormat('MMM dd, yyyy');
+    final dateStr =
+        order.createdAt != null ? dateFormat.format(order.createdAt!) : 'N/A';
+
     Color statusColor;
-    switch (status) {
+    switch (order.status) {
       case 'Completed':
         statusColor = AdminTheme.success;
         break;
@@ -245,16 +265,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'Shipping':
         statusColor = AdminTheme.info;
         break;
+      case 'Cancelled':
+        statusColor = AdminTheme.error;
+        break;
       default:
         statusColor = AdminTheme.textSecondary;
     }
 
     return TableRow(
       children: [
-        _TableCell(text: id),
-        _TableCell(text: customer),
-        _TableCell(text: date),
-        _TableCell(text: amount),
+        _TableCell(text: '#${order.id.substring(0, 6).toUpperCase()}'),
+        _TableCell(text: order.customerName),
+        _TableCell(text: dateStr),
+        _TableCell(
+          text: '₫${NumberFormat.compact().format(order.totalAmount)}',
+        ),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Container(
@@ -264,7 +289,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              status,
+              order.status,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: statusColor,

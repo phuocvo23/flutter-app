@@ -3,17 +3,18 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'config/app_theme.dart';
 import 'screens/splash_screen.dart';
-import 'services/firestore_seeder.dart';
+// import 'services/seeding_service.dart';
+import 'models/cart_item.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Seed data nếu chưa có
-  final seeder = FirestoreSeeder();
-  if (!await seeder.isSeeded()) {
-    await seeder.seedAll();
-  }
+  // Load cart from local storage
+  await CartState.loadFromStorage();
+
+  // [DISABLED] Seed products - bỏ comment để chạy lại seeding
+  // await SeedingService().seedProducts();
 
   runApp(const FuotShopApp());
 }

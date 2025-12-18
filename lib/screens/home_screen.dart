@@ -14,6 +14,7 @@ import 'product_list_screen.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
+import 'search_screen.dart';
 
 /// Màn hình chính - Apple-inspired design
 class HomeScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
+  late PageController _pageController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -36,6 +38,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 0);
+
     _fadeController = AnimationController(
       duration: AppStyles.animNormal,
       vsync: this,
@@ -56,8 +60,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  void _onTabTapped(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -65,13 +78,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: IndexedStack(index: _currentIndex, children: _screens),
+        child: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(), // Disable swipe
+          onPageChanged: (index) {
+            setState(() => _currentIndex = index);
+          },
+          children: _screens,
+        ),
       ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-        },
+        onTap: _onTabTapped,
       ),
     );
   }
@@ -114,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   _buildIconButton(
                     icon: Icons.shopping_bag_outlined,
                     badgeCount: CartState.itemCount,
-                    onTap: () => setState(() => _currentIndex = 2),
+                    onTap: () => _onTabTapped(2),
                   ),
                   const SizedBox(width: 8),
                   _buildIconButton(
@@ -130,7 +148,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: const CustomSearchBar(readOnly: true),
+              child: CustomSearchBar(
+                readOnly: true,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  );
+                },
+              ),
             ),
           ),
 
@@ -145,7 +171,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     MaterialPageRoute(
                       builder:
                           (_) => const ProductListScreen(
-                            categoryId: 'protection',
                             categoryName: 'Giáp Bảo Hộ',
                           ),
                     ),
@@ -274,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             MaterialPageRoute(
                               builder:
                                   (_) => ProductListScreen(
-                                    categoryId: category.id,
                                     categoryName: category.name,
                                   ),
                             ),
@@ -446,7 +470,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           MaterialPageRoute(
                             builder:
                                 (_) => ProductListScreen(
-                                  categoryId: category.id,
                                   categoryName: category.name,
                                 ),
                           ),

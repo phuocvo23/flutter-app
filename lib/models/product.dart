@@ -68,6 +68,7 @@ class Product {
   /// Chuyển Product thành Map để lưu vào Firestore
   Map<String, dynamic> toFirestore() {
     return {
+      'id': id,
       'name': name,
       'description': description,
       'imageUrl': imageUrl,
@@ -81,7 +82,31 @@ class Product {
       'sizes': sizes,
       'colors': colors,
       'stock': stock,
-      'createdAt': createdAt ?? FieldValue.serverTimestamp(),
+      'createdAt': createdAt?.toIso8601String(),
     };
+  }
+
+  /// Create from JSON (for local storage)
+  factory Product.fromJson(Map<String, dynamic> data) {
+    return Product(
+      id: data['id'] ?? '',
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      imageUrl: data['imageUrl'] ?? '',
+      category: data['category'] ?? '',
+      price: (data['price'] ?? 0).toDouble(),
+      originalPrice: data['originalPrice']?.toDouble(),
+      rating: (data['rating'] ?? 0).toDouble(),
+      reviewCount: data['reviewCount'] ?? 0,
+      isNew: data['isNew'] ?? false,
+      isFeatured: data['isFeatured'] ?? false,
+      sizes: List<String>.from(data['sizes'] ?? []),
+      colors: List<String>.from(data['colors'] ?? []),
+      stock: data['stock'] ?? 0,
+      createdAt:
+          data['createdAt'] != null
+              ? DateTime.tryParse(data['createdAt'])
+              : null,
+    );
   }
 }

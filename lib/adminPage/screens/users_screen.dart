@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../config/admin_theme.dart';
+import '../../models/app_user.dart';
+import '../../services/user_service.dart';
 
 /// Users Management Screen
 class UsersScreen extends StatefulWidget {
@@ -11,70 +14,7 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen> {
   final _searchController = TextEditingController();
-
-  // Demo users data
-  final List<Map<String, dynamic>> _users = [
-    {
-      'id': '1',
-      'name': 'John Doe',
-      'email': 'john@email.com',
-      'phone': '+1 234 567 890',
-      'orders': 12,
-      'spent': 1250.00,
-      'joined': 'Oct 15, 2024',
-      'status': 'Active',
-    },
-    {
-      'id': '2',
-      'name': 'Jane Smith',
-      'email': 'jane@email.com',
-      'phone': '+1 234 567 891',
-      'orders': 8,
-      'spent': 890.50,
-      'joined': 'Nov 02, 2024',
-      'status': 'Active',
-    },
-    {
-      'id': '3',
-      'name': 'Mike Johnson',
-      'email': 'mike@email.com',
-      'phone': '+1 234 567 892',
-      'orders': 5,
-      'spent': 450.00,
-      'joined': 'Nov 20, 2024',
-      'status': 'Active',
-    },
-    {
-      'id': '4',
-      'name': 'Sarah Wilson',
-      'email': 'sarah@email.com',
-      'phone': '+1 234 567 893',
-      'orders': 15,
-      'spent': 2100.00,
-      'joined': 'Sep 10, 2024',
-      'status': 'Active',
-    },
-    {
-      'id': '5',
-      'name': 'Tom Brown',
-      'email': 'tom@email.com',
-      'phone': '+1 234 567 894',
-      'orders': 3,
-      'spent': 180.00,
-      'joined': 'Dec 01, 2024',
-      'status': 'Inactive',
-    },
-    {
-      'id': '6',
-      'name': 'Emily Davis',
-      'email': 'emily@email.com',
-      'phone': '+1 234 567 895',
-      'orders': 0,
-      'spent': 0.00,
-      'joined': 'Dec 10, 2024',
-      'status': 'Pending',
-    },
-  ];
+  final UserService _userService = UserService();
 
   @override
   Widget build(BuildContext context) {
@@ -115,31 +55,44 @@ class _UsersScreenState extends State<UsersScreen> {
                 color: AdminTheme.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('User')),
-                    DataColumn(label: Text('Phone')),
-                    DataColumn(label: Text('Orders')),
-                    DataColumn(label: Text('Total Spent')),
-                    DataColumn(label: Text('Joined')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows:
-                      _users
+              child: StreamBuilder<List<AppUser>>(
+                stream: _userService.getAll(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No users found'));
+                  }
+
+                  final users =
+                      snapshot.data!
                           .where(
                             (u) =>
-                                u['name'].toLowerCase().contains(
+                                u.name.toLowerCase().contains(
                                   _searchController.text.toLowerCase(),
                                 ) ||
-                                u['email'].toLowerCase().contains(
+                                u.email.toLowerCase().contains(
                                   _searchController.text.toLowerCase(),
                                 ),
                           )
-                          .map((user) => _buildUserRow(user))
-                          .toList(),
-                ),
+                          .toList();
+
+                  return SingleChildScrollView(
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('User')),
+                        DataColumn(label: Text('Phone')),
+                        DataColumn(label: Text('Orders')),
+                        DataColumn(label: Text('Total Spent')),
+                        DataColumn(label: Text('Joined')),
+                        DataColumn(label: Text('Status')),
+                        DataColumn(label: Text('Actions')),
+                      ],
+                      rows: users.map((user) => _buildUserRow(user)).toList(),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -148,9 +101,9 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  DataRow _buildUserRow(Map<String, dynamic> user) {
+  DataRow _buildUserRow(AppUser user) {
     Color statusColor;
-    switch (user['status']) {
+    switch (user.status) {
       case 'Active':
         statusColor = AdminTheme.success;
         break;
@@ -164,6 +117,10 @@ class _UsersScreenState extends State<UsersScreen> {
         statusColor = AdminTheme.textSecondary;
     }
 
+    final dateFormat = DateFormat('MMM dd, yyyy');
+    final joinedStr =
+        user.createdAt != null ? dateFormat.format(user.createdAt!) : 'N/A';
+
     return DataRow(
       cells: [
         DataCell(
@@ -172,7 +129,7 @@ class _UsersScreenState extends State<UsersScreen> {
               CircleAvatar(
                 backgroundColor: AdminTheme.primary.withOpacity(0.1),
                 child: Text(
-                  user['name'][0],
+                  user.name.isNotEmpty ? user.name[0] : '?',
                   style: const TextStyle(
                     color: AdminTheme.primary,
                     fontWeight: FontWeight.w600,
@@ -185,14 +142,14 @@ class _UsersScreenState extends State<UsersScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    user['name'],
+                    user.name,
                     style: const TextStyle(
                       color: AdminTheme.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    user['email'],
+                    user.email,
                     style: const TextStyle(
                       fontSize: 12,
                       color: AdminTheme.textSecondary,
@@ -203,15 +160,15 @@ class _UsersScreenState extends State<UsersScreen> {
             ],
           ),
         ),
-        DataCell(Text(user['phone'])),
-        DataCell(Text('${user['orders']}')),
+        DataCell(Text(user.phone ?? 'N/A')),
+        DataCell(Text('${user.totalOrders}')),
         DataCell(
           Text(
-            '\$${user['spent'].toStringAsFixed(2)}',
+            '₫${NumberFormat('#,###').format(user.totalSpent)}',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
-        DataCell(Text(user['joined'])),
+        DataCell(Text(joinedStr)),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -220,7 +177,7 @@ class _UsersScreenState extends State<UsersScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              user['status'],
+              user.status,
               style: TextStyle(
                 color: statusColor,
                 fontSize: 12,
@@ -246,8 +203,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   color: AdminTheme.textSecondary,
                 ),
                 color: AdminTheme.card,
-                onSelected: (value) {
-                  setState(() => user['status'] = value);
+                onSelected: (value) async {
+                  await _userService.updateStatus(user.id, value);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('User status updated to $value')),
                   );
@@ -271,28 +228,36 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  void _showUserDetails(Map<String, dynamic> user) {
+  void _showUserDetails(AppUser user) {
+    final dateFormat = DateFormat('MMM dd, yyyy HH:mm');
+    final joinedStr =
+        user.createdAt != null ? dateFormat.format(user.createdAt!) : 'N/A';
+    final lastLoginStr =
+        user.lastLoginAt != null ? dateFormat.format(user.lastLoginAt!) : 'N/A';
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
             backgroundColor: AdminTheme.surface,
-            title: Text(user['name']),
+            title: Text(user.name),
             content: SizedBox(
               width: 400,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow('Email', user['email']),
-                  _buildDetailRow('Phone', user['phone']),
-                  _buildDetailRow('Total Orders', '${user['orders']}'),
+                  _buildDetailRow('Email', user.email),
+                  _buildDetailRow('Phone', user.phone ?? 'N/A'),
+                  _buildDetailRow('Address', user.address ?? 'N/A'),
+                  _buildDetailRow('Total Orders', '${user.totalOrders}'),
                   _buildDetailRow(
                     'Total Spent',
-                    '\$${user['spent'].toStringAsFixed(2)}',
+                    '₫${NumberFormat('#,###').format(user.totalSpent)}',
                   ),
-                  _buildDetailRow('Joined', user['joined']),
-                  _buildDetailRow('Status', user['status']),
+                  _buildDetailRow('Joined', joinedStr),
+                  _buildDetailRow('Last Login', lastLoginStr),
+                  _buildDetailRow('Status', user.status),
                 ],
               ),
             ),
@@ -313,7 +278,13 @@ class _UsersScreenState extends State<UsersScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: AdminTheme.textSecondary)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              textAlign: TextAlign.right,
+            ),
+          ),
         ],
       ),
     );

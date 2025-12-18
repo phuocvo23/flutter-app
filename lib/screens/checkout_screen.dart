@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/cart_item.dart';
+import '../models/order.dart';
+import '../services/order_service.dart';
+import '../services/auth_service.dart';
+import '../utils/price_formatter.dart';
 import 'billing_screen.dart';
+import 'momo_payment_screen.dart';
 
 /// Màn hình Checkout - nhập thông tin giao hàng
 class CheckoutScreen extends StatefulWidget {
@@ -18,9 +23,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _noteController = TextEditingController();
+  final OrderService _orderService = OrderService();
+  final AuthService _authService = AuthService();
 
   String _selectedPayment = 'cod';
   String _selectedShipping = 'standard';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill with user info if logged in
+    final user = _authService.currentUser;
+    if (user != null) {
+      _nameController.text = user.displayName ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -191,14 +209,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(width: 24),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: _proceed,
+                  onPressed: _isLoading ? null : _proceed,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text(
-                    'Xác nhận đơn hàng',
-                    style: TextStyle(fontSize: 16),
-                  ),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text(
+                            'Xác nhận đơn hàng',
+                            style: TextStyle(fontSize: 16),
+                          ),
                 ),
               ),
             ],
@@ -333,34 +361,115 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   double _calculateTotal() {
-    double shippingFee = _selectedShipping == 'express'
-        ? 50000
-        : (CartState.subtotal >= 500000 ? 0 : 30000);
+    double shippingFee =
+        _selectedShipping == 'express'
+            ? 50000
+            : (CartState.subtotal >= 500000 ? 0 : 30000);
     return CartState.subtotal + shippingFee;
   }
 
-  void _proceed() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _proceed() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // If MoMo is selected, show MoMo payment screen first
+    if (_selectedPayment == 'momo') {
+      final tempOrderId = DateTime.now().millisecondsSinceEpoch.toString();
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => BillingScreen(
-            customerName: _nameController.text,
-            phone: _phoneController.text,
-            address: _addressController.text,
-            paymentMethod: _selectedPayment,
-            shippingMethod: _selectedShipping,
-            total: _calculateTotal(),
-          ),
+          builder:
+              (_) => MomoPaymentScreen(
+                amount: _calculateTotal(),
+                orderId: tempOrderId,
+                onPaymentConfirmed: () {
+                  Navigator.pop(context); // Close MoMo screen
+                  _createOrder(); // Create order after payment confirmed
+                },
+              ),
         ),
       );
+      return;
+    }
+
+    // For other payment methods, create order directly
+    await _createOrder();
+  }
+
+  Future<void> _createOrder() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final user = _authService.currentUser;
+
+      // Create order items from cart
+      final orderItems =
+          CartState.items
+              .map(
+                (cartItem) => OrderItem(
+                  productId: cartItem.product.id,
+                  productName: cartItem.product.name,
+                  price: cartItem.product.price,
+                  quantity: cartItem.quantity,
+                  imageUrl: cartItem.product.imageUrl,
+                ),
+              )
+              .toList();
+
+      // Create order
+      final order = Order(
+        id: '', // Will be set by Firestore
+        customerId: user?.uid ?? 'guest',
+        customerName: _nameController.text,
+        customerEmail: user?.email ?? '',
+        customerPhone: _phoneController.text,
+        shippingAddress: _addressController.text,
+        items: orderItems,
+        totalAmount: _calculateTotal(),
+        status: _selectedPayment == 'momo' ? 'Paid' : 'Pending',
+        paymentMethod: _selectedPayment,
+        note: _noteController.text.isNotEmpty ? _noteController.text : null,
+        createdAt: DateTime.now(),
+      );
+
+      // Save to Firestore
+      final orderId = await _orderService.add(order);
+
+      // Clear cart after successful order
+      CartState.clear();
+
+      if (mounted) {
+        // Use pushAndRemoveUntil to prevent going back to checkout
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => BillingScreen(
+                  orderId: orderId,
+                  customerName: _nameController.text,
+                  phone: _phoneController.text,
+                  address: _addressController.text,
+                  paymentMethod: _selectedPayment,
+                  shippingMethod: _selectedShipping,
+                  total: _calculateTotal(),
+                ),
+          ),
+          (route) => route.isFirst, // Keep only the first route (HomeScreen)
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi đặt hàng: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M đ';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}K đ';
+    return formatVietnamPrice(price);
   }
 }

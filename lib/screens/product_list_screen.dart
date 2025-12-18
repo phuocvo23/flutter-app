@@ -9,14 +9,9 @@ import 'product_detail_screen.dart';
 
 /// Màn hình danh sách sản phẩm theo category
 class ProductListScreen extends StatefulWidget {
-  final String categoryId;
   final String categoryName;
 
-  const ProductListScreen({
-    super.key,
-    required this.categoryId,
-    required this.categoryName,
-  });
+  const ProductListScreen({super.key, required this.categoryName});
 
   @override
   State<ProductListScreen> createState() => _ProductListScreenState();
@@ -40,7 +35,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
       body: StreamBuilder<List<Product>>(
-        stream: _productService.getByCategory(widget.categoryId),
+        stream: _productService.getByCategory(widget.categoryName),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

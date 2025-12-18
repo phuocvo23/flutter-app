@@ -4,7 +4,7 @@ import '../config/app_styles.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
-/// Màn hình đăng nhập
+/// Màn hình đăng nhập - Chỉ hỗ trợ Google Sign In
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,15 +13,11 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
-  bool _obscurePassword = true;
-  bool _isLogin = true;
-  bool _isGoogleLoading = false;
+  bool _isLoading = false;
 
   Future<void> _handleGoogleSignIn() async {
-    setState(() => _isGoogleLoading = true);
+    setState(() => _isLoading = true);
 
     try {
       final userCredential = await _authService.signInWithGoogle();
@@ -42,247 +38,123 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isGoogleLoading = false);
+        setState(() => _isLoading = false);
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: AppStyles.paddingLg,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40),
+              const Spacer(flex: 2),
 
               // Logo
-              Center(
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.sports_motorsports,
-                    size: 40,
-                    color: AppColors.textOnPrimary,
-                  ),
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.sports_motorsports,
+                  size: 50,
+                  color: AppColors.textOnPrimary,
                 ),
               ),
               const SizedBox(height: 32),
 
               // Title
-              Center(
-                child: Text(
-                  _isLogin ? 'Đăng Nhập' : 'Đăng Ký',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  _isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Email
               const Text(
-                'Email',
+                'Fuot Shop',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  hintText: 'example@email.com',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Password
               const Text(
-                'Mật khẩu',
+                'Gear Up. Ride On.',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  hintText: '••••••••',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 1,
                 ),
               ),
 
-              if (_isLogin) ...[
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {},
-                    child: const Text('Quên mật khẩu?'),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 32),
+              const Spacer(flex: 2),
 
-              // Login Button
+              // Google Sign In Button
               SizedBox(
                 width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _handleSubmit,
-                  child: Text(
-                    _isLogin ? 'Đăng Nhập' : 'Đăng Ký',
-                    style: const TextStyle(fontSize: 16),
+                height: 56,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _handleGoogleSignIn,
+                  icon:
+                      _isLoading
+                          ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : Image.network(
+                            'https://www.google.com/favicon.ico',
+                            width: 24,
+                            height: 24,
+                            errorBuilder:
+                                (_, __, ___) =>
+                                    const Icon(Icons.g_mobiledata, size: 28),
+                          ),
+                  label: Text(
+                    _isLoading ? 'Đang đăng nhập...' : 'Đăng nhập với Google',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(
+                      color: AppColors.textSecondary.withOpacity(0.3),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
 
-              // Divider
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'hoặc',
-                      style: TextStyle(
-                        color: AppColors.textSecondary.withOpacity(0.8),
-                      ),
-                    ),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 24),
+              const Spacer(),
 
-              // Social Login
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
-                      icon:
-                          _isGoogleLoading
-                              ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                              : const Icon(Icons.g_mobiledata, size: 24),
-                      label: const Text('Google'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.facebook, size: 20),
-                      label: const Text('Facebook'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // Toggle Login/Register
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _isLogin = !_isLogin;
-                      });
-                    },
-                    child: Text(_isLogin ? 'Đăng ký' : 'Đăng nhập'),
-                  ),
-                ],
-              ),
-
-              // Skip button
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
-                    );
-                  },
-                  child: const Text(
-                    'Bỏ qua →',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
+              // Footer
+              Text(
+                'Bằng việc đăng nhập, bạn đồng ý với\nĐiều khoản sử dụng và Chính sách bảo mật',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary.withOpacity(0.8),
+                  height: 1.5,
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
     );
-  }
-
-  void _handleSubmit() {
-    // Demo: Navigate to home
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
   }
 }

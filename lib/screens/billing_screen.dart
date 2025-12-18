@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/cart_item.dart';
+import '../utils/price_formatter.dart';
 import 'home_screen.dart';
+import 'my_orders_screen.dart';
 
 /// Màn hình xác nhận đơn hàng (Billing)
 class BillingScreen extends StatelessWidget {
+  final String orderId;
   final String customerName;
   final String phone;
   final String address;
@@ -15,6 +18,7 @@ class BillingScreen extends StatelessWidget {
 
   const BillingScreen({
     super.key,
+    required this.orderId,
     required this.customerName,
     required this.phone,
     required this.address,
@@ -47,7 +51,7 @@ class BillingScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Mã đơn hàng: #FS${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+            'Mã đơn hàng: #${orderId.substring(0, 8).toUpperCase()}',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 14,
@@ -87,59 +91,63 @@ class BillingScreen extends StatelessWidget {
           // Products
           _buildSection(
             title: 'Sản phẩm (${CartState.itemCount} món)',
-            children: CartState.items
-                .map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            item.product.imageUrl,
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 50,
-                              height: 50,
-                              color: AppColors.surface,
-                              child: const Icon(Icons.image, size: 20),
+            children:
+                CartState.items
+                    .map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                item.product.imageUrl,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: AppColors.surface,
+                                      child: const Icon(Icons.image, size: 20),
+                                    ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.product.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.product.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    'x${item.quantity}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                'x${item.quantity}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
+                            ),
+                            Text(
+                              _formatPrice(item.totalPrice),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          _formatPrice(item.totalPrice),
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
+                      ),
+                    )
+                    .toList(),
           ),
           const SizedBox(height: 16),
 
@@ -191,13 +199,18 @@ class BillingScreen extends StatelessWidget {
           const SizedBox(height: 12),
           OutlinedButton(
             onPressed: () {
-              // TODO: Navigate to order tracking
+              // Clear cart and go to my orders
+              CartState.clear();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                (route) => false,
+              );
             },
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             child: const Text(
-              'Theo dõi đơn hàng',
+              'Xem đơn hàng của tôi',
               style: TextStyle(fontSize: 16),
             ),
           ),
@@ -262,9 +275,6 @@ class BillingScreen extends StatelessWidget {
   }
 
   String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M đ';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}K đ';
+    return formatVietnamPrice(price);
   }
 }

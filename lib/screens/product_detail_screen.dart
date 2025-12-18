@@ -3,6 +3,9 @@ import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
+import '../services/wishlist_service.dart';
+import '../utils/price_formatter.dart';
+import '../widgets/dynamic_island_notification.dart';
 
 /// Màn hình chi tiết sản phẩm
 class ProductDetailScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String? _selectedSize;
   String? _selectedColor;
   int _quantity = 1;
+  final WishlistService _wishlistService = WishlistService();
 
   @override
   void initState() {
@@ -27,6 +31,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
     if (widget.product.colors.isNotEmpty) {
       _selectedColor = widget.product.colors.first;
+    }
+  }
+
+  void _toggleWishlist() async {
+    if (!_wishlistService.isLoggedIn) {
+      dynamicIsland.showError(context, 'Vui lòng đăng nhập');
+      return;
+    }
+    final added = await _wishlistService.toggle(widget.product.id);
+    if (mounted) {
+      if (added) {
+        dynamicIsland.showAddedToWishlist(context);
+      } else {
+        dynamicIsland.showRemovedFromWishlist(context);
+      }
     }
   }
 
@@ -52,17 +71,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ),
             actions: [
+              // Wishlist button
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: AppColors.background.withOpacity(0.9),
                   shape: BoxShape.circle,
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () {},
+                child: StreamBuilder<bool>(
+                  stream: _wishlistService.isInWishlistStream(
+                    widget.product.id,
+                  ),
+                  builder: (context, snapshot) {
+                    final isInWishlist = snapshot.data ?? false;
+                    return IconButton(
+                      icon: Icon(
+                        isInWishlist ? Icons.favorite : Icons.favorite_border,
+                        color: isInWishlist ? AppColors.error : null,
+                      ),
+                      onPressed: _toggleWishlist,
+                    );
+                  },
                 ),
               ),
+              // Share button
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -71,7 +103,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.share),
-                  onPressed: () {},
+                  onPressed: () {
+                    // TODO: Implement share
+                  },
                 ),
               ),
             ],
@@ -82,14 +116,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Image.network(
                     widget.product.imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: AppColors.surface,
-                      child: const Icon(
-                        Icons.image,
-                        size: 80,
-                        color: AppColors.textHint,
-                      ),
-                    ),
+                    errorBuilder:
+                        (_, __, ___) => Container(
+                          color: AppColors.surface,
+                          child: const Icon(
+                            Icons.image,
+                            size: 80,
+                            color: AppColors.textHint,
+                          ),
+                        ),
                   ),
                   // Badges
                   if (widget.product.isNew || widget.product.hasDiscount)
@@ -102,9 +137,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: widget.product.isNew
-                              ? AppColors.primary
-                              : AppColors.error,
+                          color:
+                              widget.product.isNew
+                                  ? AppColors.primary
+                                  : AppColors.error,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -179,9 +215,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: widget.product.stock > 0
-                              ? AppColors.success.withOpacity(0.1)
-                              : AppColors.error.withOpacity(0.1),
+                          color:
+                              widget.product.stock > 0
+                                  ? AppColors.success.withOpacity(0.1)
+                                  : AppColors.error.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -189,9 +226,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: widget.product.stock > 0
-                                ? AppColors.success
-                                : AppColors.error,
+                            color:
+                                widget.product.stock > 0
+                                    ? AppColors.success
+                                    : AppColors.error,
                           ),
                         ),
                       ),
@@ -239,40 +277,44 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 12,
-                      children: widget.product.sizes.map((size) {
-                        final isSelected = size == _selectedSize;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() => _selectedSize = size);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.surface,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.divider,
+                      children:
+                          widget.product.sizes.map((size) {
+                            final isSelected = size == _selectedSize;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() => _selectedSize = size);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isSelected
+                                          ? AppColors.primary
+                                          : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color:
+                                        isSelected
+                                            ? AppColors.primary
+                                            : AppColors.divider,
+                                  ),
+                                ),
+                                child: Text(
+                                  size,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        isSelected
+                                            ? AppColors.textOnPrimary
+                                            : AppColors.textPrimary,
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              size,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? AppColors.textOnPrimary
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -290,40 +332,44 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 12,
-                      children: widget.product.colors.map((color) {
-                        final isSelected = color == _selectedColor;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() => _selectedColor = color);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.surface,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.divider,
+                      children:
+                          widget.product.colors.map((color) {
+                            final isSelected = color == _selectedColor;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() => _selectedColor = color);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isSelected
+                                          ? AppColors.primary
+                                          : AppColors.surface,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color:
+                                        isSelected
+                                            ? AppColors.primary
+                                            : AppColors.divider,
+                                  ),
+                                ),
+                                child: Text(
+                                  color,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        isSelected
+                                            ? AppColors.textOnPrimary
+                                            : AppColors.textPrimary,
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              color,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? AppColors.textOnPrimary
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                            );
+                          }).toList(),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -348,9 +394,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Row(
                           children: [
                             IconButton(
-                              onPressed: _quantity > 1
-                                  ? () => setState(() => _quantity--)
-                                  : null,
+                              onPressed:
+                                  _quantity > 1
+                                      ? () => setState(() => _quantity--)
+                                      : null,
                               icon: const Icon(Icons.remove),
                             ),
                             SizedBox(
@@ -365,9 +412,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             IconButton(
-                              onPressed: _quantity < widget.product.stock
-                                  ? () => setState(() => _quantity++)
-                                  : null,
+                              onPressed:
+                                  _quantity < widget.product.stock
+                                      ? () => setState(() => _quantity++)
+                                      : null,
                               icon: const Icon(Icons.add),
                             ),
                           ],
@@ -468,24 +516,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã thêm ${widget.product.name} vào giỏ hàng'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'XEM GIỎ',
-          textColor: AppColors.textOnPrimary,
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-    );
+    dynamicIsland.showAddedToCart(context, widget.product.name);
   }
 
   String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M đ';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}K đ';
+    return formatVietnamPrice(price);
   }
 }

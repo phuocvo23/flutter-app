@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../config/admin_theme.dart';
+import '../../models/order.dart';
+import '../../services/order_service.dart';
+import '../../services/csv_service.dart';
 
 /// Orders Management Screen
 class OrdersScreen extends StatefulWidget {
@@ -11,85 +15,34 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   String _statusFilter = 'All';
-
-  // Demo orders data
-  final List<Map<String, dynamic>> _orders = [
-    {
-      'id': '#1234',
-      'customer': 'John Doe',
-      'email': 'john@email.com',
-      'date': 'Dec 15, 2024',
-      'amount': 150.00,
-      'status': 'Completed',
-      'items': 3,
-    },
-    {
-      'id': '#1233',
-      'customer': 'Jane Smith',
-      'email': 'jane@email.com',
-      'date': 'Dec 14, 2024',
-      'amount': 89.50,
-      'status': 'Pending',
-      'items': 2,
-    },
-    {
-      'id': '#1232',
-      'customer': 'Mike Johnson',
-      'email': 'mike@email.com',
-      'date': 'Dec 14, 2024',
-      'amount': 234.00,
-      'status': 'Shipping',
-      'items': 4,
-    },
-    {
-      'id': '#1231',
-      'customer': 'Sarah Wilson',
-      'email': 'sarah@email.com',
-      'date': 'Dec 13, 2024',
-      'amount': 67.00,
-      'status': 'Completed',
-      'items': 1,
-    },
-    {
-      'id': '#1230',
-      'customer': 'Tom Brown',
-      'email': 'tom@email.com',
-      'date': 'Dec 13, 2024',
-      'amount': 412.00,
-      'status': 'Completed',
-      'items': 5,
-    },
-    {
-      'id': '#1229',
-      'customer': 'Emily Davis',
-      'email': 'emily@email.com',
-      'date': 'Dec 12, 2024',
-      'amount': 178.00,
-      'status': 'Cancelled',
-      'items': 2,
-    },
-  ];
+  final OrderService _orderService = OrderService();
+  final CsvService _csvService = CsvService();
 
   @override
   Widget build(BuildContext context) {
-    final filteredOrders =
-        _statusFilter == 'All'
-            ? _orders
-            : _orders.where((o) => o['status'] == _statusFilter).toList();
-
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          const Text(
-            'Orders',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AdminTheme.textPrimary,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Orders',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AdminTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: _exportOrdersCsv,
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text('Export CSV'),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
@@ -116,22 +69,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 color: AdminTheme.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: SingleChildScrollView(
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Order ID')),
-                    DataColumn(label: Text('Customer')),
-                    DataColumn(label: Text('Date')),
-                    DataColumn(label: Text('Items')),
-                    DataColumn(label: Text('Amount')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows:
-                      filteredOrders
-                          .map((order) => _buildOrderRow(order))
-                          .toList(),
-                ),
+              child: StreamBuilder<List<Order>>(
+                stream:
+                    _statusFilter == 'All'
+                        ? _orderService.getAll()
+                        : _orderService.getByStatus(_statusFilter),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No orders found'));
+                  }
+
+                  final orders = snapshot.data!;
+                  return SingleChildScrollView(
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('Order ID')),
+                        DataColumn(label: Text('Customer')),
+                        DataColumn(label: Text('Date')),
+                        DataColumn(label: Text('Items')),
+                        DataColumn(label: Text('Amount')),
+                        DataColumn(label: Text('Status')),
+                        DataColumn(label: Text('Actions')),
+                      ],
+                      rows:
+                          orders.map((order) => _buildOrderRow(order)).toList(),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -154,9 +121,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  DataRow _buildOrderRow(Map<String, dynamic> order) {
+  DataRow _buildOrderRow(Order order) {
     Color statusColor;
-    switch (order['status']) {
+    switch (order.status) {
       case 'Completed':
         statusColor = AdminTheme.success;
         break;
@@ -173,11 +140,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
         statusColor = AdminTheme.textSecondary;
     }
 
+    final dateFormat = DateFormat('MMM dd, yyyy');
+    final dateStr =
+        order.createdAt != null ? dateFormat.format(order.createdAt!) : 'N/A';
+
     return DataRow(
       cells: [
         DataCell(
           Text(
-            order['id'],
+            '#${order.id.substring(0, 6).toUpperCase()}',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
@@ -187,11 +158,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                order['customer'],
+                order.customerName,
                 style: const TextStyle(color: AdminTheme.textPrimary),
               ),
               Text(
-                order['email'],
+                order.customerEmail,
                 style: const TextStyle(
                   fontSize: 12,
                   color: AdminTheme.textSecondary,
@@ -200,11 +171,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ],
           ),
         ),
-        DataCell(Text(order['date'])),
-        DataCell(Text('${order['items']} items')),
+        DataCell(Text(dateStr)),
+        DataCell(Text('${order.itemCount} items')),
         DataCell(
           Text(
-            '\$${order['amount'].toStringAsFixed(2)}',
+            '₫${NumberFormat('#,###').format(order.totalAmount)}',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
@@ -216,7 +187,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              order['status'],
+              order.status,
               style: TextStyle(
                 color: statusColor,
                 fontSize: 12,
@@ -242,8 +213,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   color: AdminTheme.textSecondary,
                 ),
                 color: AdminTheme.card,
-                onSelected: (value) {
-                  setState(() => order['status'] = value);
+                onSelected: (value) async {
+                  await _orderService.updateStatus(order.id, value);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Order status updated to $value')),
                   );
@@ -275,28 +246,68 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  void _showOrderDetails(Map<String, dynamic> order) {
+  void _showOrderDetails(Order order) {
+    final dateFormat = DateFormat('MMM dd, yyyy HH:mm');
+    final dateStr =
+        order.createdAt != null ? dateFormat.format(order.createdAt!) : 'N/A';
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
             backgroundColor: AdminTheme.surface,
-            title: Text('Order ${order['id']}'),
+            title: Text('Order #${order.id.substring(0, 6).toUpperCase()}'),
             content: SizedBox(
-              width: 400,
+              width: 500,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow('Customer', order['customer']),
-                  _buildDetailRow('Email', order['email']),
-                  _buildDetailRow('Date', order['date']),
-                  _buildDetailRow('Items', '${order['items']} items'),
+                  _buildDetailRow('Customer', order.customerName),
+                  _buildDetailRow('Email', order.customerEmail),
+                  _buildDetailRow('Phone', order.customerPhone ?? 'N/A'),
+                  _buildDetailRow('Date', dateStr),
+                  _buildDetailRow('Status', order.status),
                   _buildDetailRow(
-                    'Amount',
-                    '\$${order['amount'].toStringAsFixed(2)}',
+                    'Shipping Address',
+                    order.shippingAddress ?? 'N/A',
                   ),
-                  _buildDetailRow('Status', order['status']),
+                  const Divider(height: 24),
+                  const Text(
+                    'Order Items',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AdminTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...order.items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${item.productName} x${item.quantity}',
+                              style: const TextStyle(
+                                color: AdminTheme.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '₫${NumberFormat('#,###').format(item.total)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 24),
+                  _buildDetailRow(
+                    'Total Amount',
+                    '₫${NumberFormat('#,###').format(order.totalAmount)}',
+                  ),
                 ],
               ),
             ),
@@ -317,9 +328,32 @@ class _OrdersScreenState extends State<OrdersScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: AdminTheme.textSecondary)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              textAlign: TextAlign.right,
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _exportOrdersCsv() async {
+    try {
+      final success = await _csvService.downloadOrdersCsv();
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Orders exported successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      }
+    }
   }
 }

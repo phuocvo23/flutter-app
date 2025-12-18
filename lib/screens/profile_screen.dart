@@ -1,14 +1,64 @@
 import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
+import '../services/auth_service.dart';
+import '../services/wishlist_service.dart';
 import 'login_screen.dart';
+import 'my_orders_screen.dart';
+import 'wishlist_screen.dart';
 
-/// Màn hình Profile
-class ProfileScreen extends StatelessWidget {
+/// Màn hình Profile - Hiển thị thông tin user từ Firebase Auth
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final AuthService _authService = AuthService();
+  final WishlistService _wishlistService = WishlistService();
+
+  Future<void> _handleSignOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Đăng xuất'),
+            content: const Text('Bạn có chắc muốn đăng xuất?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                ),
+                child: const Text('Đăng xuất'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true && mounted) {
+      await _authService.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = _authService.currentUser;
+    final isLoggedIn = user != null;
+    final displayName = user?.displayName ?? 'Người dùng';
+    final email = user?.email ?? '';
+    final photoUrl = user?.photoURL;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tài khoản'),
@@ -32,6 +82,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
+                // Avatar
                 Container(
                   width: 70,
                   height: 70,
@@ -40,10 +91,24 @@ class ProfileScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 3),
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: AppColors.primary,
+                  child: ClipOval(
+                    child:
+                        photoUrl != null
+                            ? Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (_, __, ___) => const Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: AppColors.primary,
+                                  ),
+                            )
+                            : const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: AppColors.primary,
+                            ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -51,42 +116,55 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Khách',
-                        style: TextStyle(
+                      Text(
+                        displayName,
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textOnPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: Container(
+                      if (email.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          email,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textOnPrimary.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                      if (isLoggedIn) ...[
+                        const SizedBox(height: 8),
+                        Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 10,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text(
-                            'Đăng nhập / Đăng ký',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textOnPrimary,
-                            ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.verified,
+                                size: 14,
+                                color: AppColors.textOnPrimary,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Đã xác thực',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textOnPrimary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -107,10 +185,16 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildStatCard(
-                  icon: Icons.favorite_outline,
-                  value: '0',
-                  label: 'Yêu thích',
+                child: StreamBuilder<int>(
+                  stream: _wishlistService.getCountStream(),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return _buildStatCard(
+                      icon: Icons.favorite_outline,
+                      value: count.toString(),
+                      label: 'Yêu thích',
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -130,13 +214,23 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.shopping_bag_outlined,
             title: 'Đơn hàng của tôi',
             subtitle: 'Xem lịch sử đơn hàng',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+              );
+            },
           ),
           _buildMenuItem(
-            icon: Icons.location_on_outlined,
-            title: 'Địa chỉ giao hàng',
-            subtitle: 'Quản lý địa chỉ',
-            onTap: () {},
+            icon: Icons.favorite_outline,
+            title: 'Yêu thích',
+            subtitle: 'Sản phẩm đã thích',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WishlistScreen()),
+              );
+            },
           ),
           _buildMenuItem(
             icon: Icons.payment_outlined,
@@ -162,6 +256,27 @@ class ProfileScreen extends StatelessWidget {
             subtitle: 'Phiên bản 1.0.0',
             onTap: () {},
           ),
+
+          const SizedBox(height: 24),
+
+          // Sign Out Button
+          if (isLoggedIn)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _handleSignOut,
+                icon: const Icon(Icons.logout, color: AppColors.error),
+                label: const Text(
+                  'Đăng xuất',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppColors.error),
+                ),
+              ),
+            ),
+
           const SizedBox(height: 24),
 
           // Social Links

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/cart_item.dart';
+import '../utils/price_formatter.dart';
 import 'checkout_screen.dart';
 
 /// Màn hình giỏ hàng
@@ -32,23 +33,24 @@ class _CartScreenState extends State<CartScreen> {
             ),
         ],
       ),
-      body: items.isEmpty
-          ? _buildEmptyCart()
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) {
-                      return _buildCartItem(items[index], index);
-                    },
+      body:
+          items.isEmpty
+              ? _buildEmptyCart()
+              : Column(
+                children: [
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        return _buildCartItem(items[index], index);
+                      },
+                    ),
                   ),
-                ),
-                _buildBottomSummary(),
-              ],
-            ),
+                  _buildBottomSummary(),
+                ],
+              ),
     );
   }
 
@@ -99,12 +101,13 @@ class _CartScreenState extends State<CartScreen> {
               width: 80,
               height: 80,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 80,
-                height: 80,
-                color: AppColors.surface,
-                child: const Icon(Icons.image, color: AppColors.textHint),
-              ),
+              errorBuilder:
+                  (_, __, ___) => Container(
+                    width: 80,
+                    height: 80,
+                    color: AppColors.surface,
+                    child: const Icon(Icons.image, color: AppColors.textHint),
+                  ),
             ),
           ),
           const SizedBox(width: 12),
@@ -265,9 +268,10 @@ class _CartScreenState extends State<CartScreen> {
                       : _formatPrice(CartState.shippingFee),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: CartState.shippingFee == 0
-                        ? AppColors.success
-                        : AppColors.textPrimary,
+                    color:
+                        CartState.shippingFee == 0
+                            ? AppColors.success
+                            : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -307,16 +311,17 @@ class _CartScreenState extends State<CartScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: CartState.items.isNotEmpty
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CheckoutScreen(),
-                          ),
-                        );
-                      }
-                    : null,
+                onPressed:
+                    CartState.items.isNotEmpty
+                        ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CheckoutScreen(),
+                            ),
+                          );
+                        }
+                        : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
@@ -347,33 +352,33 @@ class _CartScreenState extends State<CartScreen> {
   void _clearCart() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa giỏ hàng'),
-        content: const Text('Bạn có chắc muốn xóa tất cả sản phẩm?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Xóa giỏ hàng'),
+            content: const Text('Bạn có chắc muốn xóa tất cả sản phẩm?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    CartState.clear();
+                  });
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                ),
+                child: const Text('Xóa'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                CartState.clear();
-              });
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Xóa'),
-          ),
-        ],
-      ),
     );
   }
 
   String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M đ';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}K đ';
+    return formatVietnamPrice(price);
   }
 }

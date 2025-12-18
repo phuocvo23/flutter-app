@@ -9,6 +9,8 @@ class FirestoreSeeder {
   Future<void> seedAll() async {
     await seedCategories();
     await seedProducts();
+    await seedUsers();
+    await seedOrders();
     print('✅ Seeding completed!');
   }
 
@@ -251,6 +253,254 @@ class FirestoreSeeder {
 
     await batch.commit();
     print('✅ Products seeded!');
+  }
+
+  /// Seed users
+  Future<void> seedUsers() async {
+    final users = [
+      {
+        'name': 'Nguyễn Văn An',
+        'email': 'nguyenvanan@email.com',
+        'phone': '+84 912 345 678',
+        'totalOrders': 12,
+        'totalSpent': 15250000,
+        'status': 'Active',
+        'address': '123 Nguyễn Huệ, Q1, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'name': 'Trần Thị Bình',
+        'email': 'tranthib@email.com',
+        'phone': '+84 987 654 321',
+        'totalOrders': 8,
+        'totalSpent': 8900000,
+        'status': 'Active',
+        'address': '456 Lê Lợi, Q3, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'name': 'Lê Minh Châu',
+        'email': 'leminhc@email.com',
+        'phone': '+84 909 123 456',
+        'totalOrders': 5,
+        'totalSpent': 4500000,
+        'status': 'Active',
+        'address': '789 Trần Hưng Đạo, Q5, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'name': 'Phạm Đức Dũng',
+        'email': 'phamducd@email.com',
+        'phone': '+84 918 765 432',
+        'totalOrders': 15,
+        'totalSpent': 21000000,
+        'status': 'Active',
+        'address': '321 Võ Văn Tần, Q3, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'name': 'Hoàng Văn Em',
+        'email': 'hoangvane@email.com',
+        'phone': '+84 933 222 111',
+        'totalOrders': 3,
+        'totalSpent': 1800000,
+        'status': 'Inactive',
+        'address': '654 Điện Biên Phủ, Bình Thạnh, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'name': 'Võ Thị Phương',
+        'email': 'vothip@email.com',
+        'phone': '+84 977 888 999',
+        'totalOrders': 0,
+        'totalSpent': 0,
+        'status': 'Pending',
+        'address': '987 Cách Mạng Tháng 8, Q10, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      },
+    ];
+
+    final batch = _firestore.batch();
+
+    for (int i = 0; i < users.length; i++) {
+      final docRef = _firestore.collection('users').doc('user_${i + 1}');
+      batch.set(docRef, users[i]);
+    }
+
+    await batch.commit();
+    print('✅ Users seeded!');
+  }
+
+  /// Seed orders
+  Future<void> seedOrders() async {
+    final orders = [
+      {
+        'customerId': 'user_1',
+        'customerName': 'Nguyễn Văn An',
+        'customerEmail': 'nguyenvanan@email.com',
+        'customerPhone': '+84 912 345 678',
+        'items': [
+          {
+            'productId': 'product_1',
+            'productName': 'Mũ Bảo Hiểm Royal M139',
+            'price': 1250000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
+          },
+          {
+            'productId': 'product_2',
+            'productName': 'Găng Tay Dainese Carbon',
+            'price': 890000,
+            'quantity': 2,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1584467541268-b040f83be3fd?w=400',
+          },
+        ],
+        'totalAmount': 3030000,
+        'status': 'Completed',
+        'shippingAddress': '123 Nguyễn Huệ, Q1, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'customerId': 'user_2',
+        'customerName': 'Trần Thị Bình',
+        'customerEmail': 'tranthib@email.com',
+        'customerPhone': '+84 987 654 321',
+        'items': [
+          {
+            'productId': 'product_3',
+            'productName': 'Áo Giáp Alpinestars',
+            'price': 2450000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400',
+          },
+        ],
+        'totalAmount': 2450000,
+        'status': 'Pending',
+        'shippingAddress': '456 Lê Lợi, Q3, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'customerId': 'user_3',
+        'customerName': 'Lê Minh Châu',
+        'customerEmail': 'leminhc@email.com',
+        'customerPhone': '+84 909 123 456',
+        'items': [
+          {
+            'productId': 'product_7',
+            'productName': 'Jacket Touring Duhan',
+            'price': 1850000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400',
+          },
+          {
+            'productId': 'product_8',
+            'productName': 'Quần Riding Komine',
+            'price': 980000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=400',
+          },
+        ],
+        'totalAmount': 2830000,
+        'status': 'Shipping',
+        'shippingAddress': '789 Trần Hưng Đạo, Q5, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'customerId': 'user_4',
+        'customerName': 'Phạm Đức Dũng',
+        'customerEmail': 'phamducd@email.com',
+        'customerPhone': '+84 918 765 432',
+        'items': [
+          {
+            'productId': 'product_5',
+            'productName': 'Giày Touring TCX',
+            'price': 1890000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
+          },
+        ],
+        'totalAmount': 1890000,
+        'status': 'Completed',
+        'shippingAddress': '321 Võ Văn Tần, Q3, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'customerId': 'user_1',
+        'customerName': 'Nguyễn Văn An',
+        'customerEmail': 'nguyenvanan@email.com',
+        'customerPhone': '+84 912 345 678',
+        'items': [
+          {
+            'productId': 'product_4',
+            'productName': 'Balo Givi 35L',
+            'price': 1650000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400',
+          },
+          {
+            'productId': 'product_6',
+            'productName': 'Kính Riding Goggles',
+            'price': 450000,
+            'quantity': 2,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400',
+          },
+        ],
+        'totalAmount': 2550000,
+        'status': 'Completed',
+        'shippingAddress': '123 Nguyễn Huệ, Q1, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      {
+        'customerId': 'user_5',
+        'customerName': 'Hoàng Văn Em',
+        'customerEmail': 'hoangvane@email.com',
+        'customerPhone': '+84 933 222 111',
+        'items': [
+          {
+            'productId': 'product_6',
+            'productName': 'Kính Riding Goggles',
+            'price': 450000,
+            'quantity': 1,
+            'imageUrl':
+                'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400',
+          },
+        ],
+        'totalAmount': 450000,
+        'status': 'Cancelled',
+        'shippingAddress': '654 Điện Biên Phủ, Bình Thạnh, TP.HCM',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    ];
+
+    final batch = _firestore.batch();
+
+    for (int i = 0; i < orders.length; i++) {
+      final docRef = _firestore.collection('orders').doc('order_${i + 1}');
+      batch.set(docRef, orders[i]);
+    }
+
+    await batch.commit();
+    print('✅ Orders seeded!');
   }
 
   /// Kiểm tra xem đã seed chưa

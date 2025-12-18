@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/product.dart';
+import '../services/wishlist_service.dart';
+import '../utils/price_formatter.dart';
+import 'dynamic_island_notification.dart';
 
-/// Product Card - Apple-inspired minimal, overflow-safe design
+/// Product Card - Apple-inspired minimal design with wishlist
 class ProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback? onTap;
@@ -24,6 +27,7 @@ class _ProductCardState extends State<ProductCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  final WishlistService _wishlistService = WishlistService();
 
   @override
   void initState() {
@@ -46,6 +50,21 @@ class _ProductCardState extends State<ProductCard>
   void _onTapDown(TapDownDetails details) => _controller.forward();
   void _onTapUp(TapUpDetails details) => _controller.reverse();
   void _onTapCancel() => _controller.reverse();
+
+  void _toggleWishlist() async {
+    if (!_wishlistService.isLoggedIn) {
+      dynamicIsland.showError(context, 'Vui lòng đăng nhập');
+      return;
+    }
+    final added = await _wishlistService.toggle(widget.product.id);
+    if (mounted) {
+      if (added) {
+        dynamicIsland.showAddedToWishlist(context);
+      } else {
+        dynamicIsland.showRemovedFromWishlist(context);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,25 +142,38 @@ class _ProductCardState extends State<ProductCard>
                               ),
                             ),
                           ),
-                        // Add to cart
+                        // Wishlist button
                         Positioned(
                           bottom: 6,
                           right: 6,
-                          child: GestureDetector(
-                            onTap: widget.onAddToCart,
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 16,
-                              ),
+                          child: StreamBuilder<bool>(
+                            stream: _wishlistService.isInWishlistStream(
+                              widget.product.id,
                             ),
+                            builder: (context, snapshot) {
+                              final isInWishlist = snapshot.data ?? false;
+                              return GestureDetector(
+                                onTap: _toggleWishlist,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isInWishlist
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color:
+                                        isInWishlist
+                                            ? AppColors.error
+                                            : AppColors.textSecondary,
+                                    size: 16,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -209,9 +241,6 @@ class _ProductCardState extends State<ProductCard>
   }
 
   String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}K';
+    return formatVietnamPrice(price);
   }
 }

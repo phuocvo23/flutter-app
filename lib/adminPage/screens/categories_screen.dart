@@ -14,6 +14,19 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final CategoryService _categoryService = CategoryService();
 
+  // Icon mapping for selection
+  static const Map<String, IconData> _iconMap = {
+    'sports_motorsports': Icons.sports_motorsports,
+    'back_hand': Icons.back_hand,
+    'checkroom': Icons.checkroom,
+    'shield': Icons.shield,
+    'snowshoeing': Icons.snowshoeing,
+    'backpack': Icons.backpack,
+    'dry_cleaning': Icons.dry_cleaning,
+    'settings_input_component': Icons.settings_input_component,
+    'category': Icons.category,
+  };
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -166,39 +179,147 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   void _showCategoryDialog(Category? category) {
     final isEditing = category != null;
     final nameController = TextEditingController(text: category?.name ?? '');
+    final imageUrlController = TextEditingController(
+      text: category?.imageUrl ?? '',
+    );
+    String selectedIcon = category?.iconName ?? 'category';
 
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            backgroundColor: AdminTheme.surface,
-            title: Text(isEditing ? 'Edit Category' : 'Add Category'),
-            content: SizedBox(
-              width: 300,
-              child: TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Category Name'),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isEditing ? 'Category updated!' : 'Category added!',
-                      ),
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: AdminTheme.surface,
+                  title: Text(isEditing ? 'Edit Category' : 'Add Category'),
+                  content: SizedBox(
+                    width: 400,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Category Name',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: imageUrlController,
+                          decoration: const InputDecoration(
+                            labelText: 'Image URL',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Select Icon:',
+                          style: TextStyle(color: AdminTheme.textSecondary),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              _iconMap.entries
+                                  .map(
+                                    (entry) => InkWell(
+                                      onTap:
+                                          () => setDialogState(
+                                            () => selectedIcon = entry.key,
+                                          ),
+                                      child: Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              selectedIcon == entry.key
+                                                  ? AdminTheme.primary
+                                                      .withOpacity(0.2)
+                                                  : AdminTheme.card,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border:
+                                              selectedIcon == entry.key
+                                                  ? Border.all(
+                                                    color: AdminTheme.primary,
+                                                    width: 2,
+                                                  )
+                                                  : null,
+                                        ),
+                                        child: Icon(
+                                          entry.value,
+                                          color:
+                                              selectedIcon == entry.key
+                                                  ? AdminTheme.primary
+                                                  : AdminTheme.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                      ],
                     ),
-                  );
-                },
-                child: Text(isEditing ? 'Update' : 'Add'),
-              ),
-            ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (nameController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter category name'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final newCategory = Category(
+                          id:
+                              category?.id ??
+                              nameController.text.toLowerCase().replaceAll(
+                                ' ',
+                                '_',
+                              ),
+                          name: nameController.text,
+                          iconName: selectedIcon,
+                          imageUrl:
+                              imageUrlController.text.isNotEmpty
+                                  ? imageUrlController.text
+                                  : 'https://via.placeholder.com/400',
+                          productCount: category?.productCount ?? 0,
+                        );
+
+                        try {
+                          if (isEditing) {
+                            await _categoryService.update(newCategory);
+                          } else {
+                            await _categoryService.add(newCategory);
+                          }
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isEditing
+                                    ? 'Category updated!'
+                                    : 'Category added!',
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      },
+                      child: Text(isEditing ? 'Update' : 'Add'),
+                    ),
+                  ],
+                ),
           ),
     );
   }

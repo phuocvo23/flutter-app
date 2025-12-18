@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
 
 /// Splash Screen - Apple-inspired smooth animation
 class SplashScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -51,32 +54,34 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
+    _navigateToNextScreen();
+  }
 
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder:
-                (context, animation, secondaryAnimation) => const LoginScreen(),
-            transitionsBuilder: (
-              context,
-              animation,
-              secondaryAnimation,
-              child,
-            ) {
-              return FadeTransition(
-                opacity: CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeInOut,
-                ),
-                child: child,
-              );
-            },
-            transitionDuration: AppStyles.animSlow,
-          ),
-        );
-      }
-    });
+  Future<void> _navigateToNextScreen() async {
+    await Future.delayed(const Duration(milliseconds: 2200));
+
+    if (!mounted) return;
+
+    // Check if user is already signed in
+    final isSignedIn = _authService.isSignedIn;
+    final Widget nextScreen =
+        isSignedIn ? const HomeScreen() : const LoginScreen();
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => nextScreen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOut,
+            ),
+            child: child,
+          );
+        },
+        transitionDuration: AppStyles.animSlow,
+      ),
+    );
   }
 
   @override

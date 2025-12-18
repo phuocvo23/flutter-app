@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../config/admin_theme.dart';
 import '../../models/product.dart';
 import '../../services/product_service.dart';
+import '../../services/category_service.dart';
+import '../../services/csv_service.dart';
+import '../../models/category.dart';
 
 /// Products Management Screen
 class ProductsScreen extends StatefulWidget {
@@ -14,6 +18,8 @@ class ProductsScreen extends StatefulWidget {
 class _ProductsScreenState extends State<ProductsScreen> {
   final _searchController = TextEditingController();
   final ProductService _productService = ProductService();
+  final CategoryService _categoryService = CategoryService();
+  final CsvService _csvService = CsvService();
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +30,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
         children: [
           // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Products',
@@ -34,6 +39,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   color: AdminTheme.textPrimary,
                 ),
               ),
+              const Spacer(),
+              // Export CSV
+              OutlinedButton.icon(
+                onPressed: _exportCsv,
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text('Export CSV'),
+              ),
+              const SizedBox(width: 8),
+              // Import CSV
+              OutlinedButton.icon(
+                onPressed: _importCsv,
+                icon: const Icon(Icons.upload, size: 18),
+                label: const Text('Import CSV'),
+              ),
+              const SizedBox(width: 8),
+              // Add Product
               ElevatedButton.icon(
                 onPressed: _showAddProductDialog,
                 icon: const Icon(Icons.add),
@@ -145,7 +166,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
         ),
         DataCell(Text(product.category)),
-        DataCell(Text('\$${product.price.toStringAsFixed(0)}')),
+        DataCell(Text('₫${NumberFormat('#,###').format(product.price)}')),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -208,64 +229,226 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void _showProductDialog(Product? product) {
     final isEditing = product != null;
     final nameController = TextEditingController(text: product?.name ?? '');
+    final descController = TextEditingController(
+      text: product?.description ?? '',
+    );
     final priceController = TextEditingController(
       text: product?.price.toString() ?? '',
+    );
+    final originalPriceController = TextEditingController(
+      text: product?.originalPrice?.toString() ?? '',
     );
     final stockController = TextEditingController(
       text: product?.stock.toString() ?? '',
     );
+    final imageUrlController = TextEditingController(
+      text: product?.imageUrl ?? '',
+    );
+    String? selectedCategory = product?.category;
+    bool isFeatured = product?.isFeatured ?? false;
+    bool isNew = product?.isNew ?? false;
 
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
-            backgroundColor: AdminTheme.surface,
-            title: Text(isEditing ? 'Edit Product' : 'Add Product'),
-            content: SizedBox(
-              width: 400,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Name',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: priceController,
-                    decoration: const InputDecoration(labelText: 'Price'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: stockController,
-                    decoration: const InputDecoration(labelText: 'Stock'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        isEditing ? 'Product updated!' : 'Product added!',
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: AdminTheme.surface,
+                  title: Text(isEditing ? 'Edit Product' : 'Add Product'),
+                  content: SizedBox(
+                    width: 500,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Product Name',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: descController,
+                            decoration: const InputDecoration(
+                              labelText: 'Description',
+                            ),
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: imageUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Image URL',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          StreamBuilder<List<Category>>(
+                            stream: _categoryService.getAll(),
+                            builder: (context, snapshot) {
+                              final categories = snapshot.data ?? [];
+                              // Kiểm tra nếu selectedCategory không có trong list thì set null
+                              final categoryNames =
+                                  categories.map((c) => c.name).toList();
+                              if (selectedCategory != null &&
+                                  !categoryNames.contains(selectedCategory)) {
+                                selectedCategory = null;
+                              }
+                              return DropdownButtonFormField<String>(
+                                value: selectedCategory,
+                                decoration: const InputDecoration(
+                                  labelText: 'Category',
+                                ),
+                                hint: const Text('Select category'),
+                                items:
+                                    categories
+                                        .map(
+                                          (cat) => DropdownMenuItem(
+                                            value: cat.name,
+                                            child: Text(cat.name),
+                                          ),
+                                        )
+                                        .toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setDialogState(
+                                      () => selectedCategory = value,
+                                    );
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: priceController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Price',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: TextField(
+                                  controller: originalPriceController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Original Price',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: stockController,
+                            decoration: const InputDecoration(
+                              labelText: 'Stock',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: isFeatured,
+                                onChanged:
+                                    (value) => setDialogState(
+                                      () => isFeatured = value ?? false,
+                                    ),
+                              ),
+                              const Text('Featured'),
+                              const SizedBox(width: 24),
+                              Checkbox(
+                                value: isNew,
+                                onChanged:
+                                    (value) => setDialogState(
+                                      () => isNew = value ?? false,
+                                    ),
+                              ),
+                              const Text('New'),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
-                child: Text(isEditing ? 'Update' : 'Add'),
-              ),
-            ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (nameController.text.isEmpty ||
+                            priceController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please fill required fields'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final newProduct = Product(
+                          id:
+                              product?.id ??
+                              DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: nameController.text,
+                          description: descController.text,
+                          imageUrl:
+                              imageUrlController.text.isNotEmpty
+                                  ? imageUrlController.text
+                                  : 'https://via.placeholder.com/400',
+                          category: selectedCategory ?? '',
+                          price: double.tryParse(priceController.text) ?? 0,
+                          originalPrice:
+                              originalPriceController.text.isNotEmpty
+                                  ? double.tryParse(
+                                    originalPriceController.text,
+                                  )
+                                  : null,
+                          stock: int.tryParse(stockController.text) ?? 0,
+                          isFeatured: isFeatured,
+                          isNew: isNew,
+                          rating: product?.rating ?? 0,
+                          reviewCount: product?.reviewCount ?? 0,
+                          sizes: product?.sizes ?? [],
+                          colors: product?.colors ?? [],
+                          createdAt: product?.createdAt,
+                        );
+
+                        try {
+                          if (isEditing) {
+                            await _productService.update(newProduct);
+                          } else {
+                            await _productService.add(newProduct);
+                          }
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isEditing
+                                    ? 'Product updated!'
+                                    : 'Product added!',
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      },
+                      child: Text(isEditing ? 'Update' : 'Add'),
+                    ),
+                  ],
+                ),
           ),
     );
   }
@@ -299,5 +482,39 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ],
           ),
     );
+  }
+
+  void _exportCsv() async {
+    try {
+      final success = await _csvService.downloadProductsCsv();
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CSV exported successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      }
+    }
+  }
+
+  void _importCsv() async {
+    try {
+      final count = await _csvService.importProductsFromCsv();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Imported $count products!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+      }
+    }
   }
 }
