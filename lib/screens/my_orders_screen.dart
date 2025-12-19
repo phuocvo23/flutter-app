@@ -3,9 +3,12 @@ import 'package:intl/intl.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
 import '../models/order.dart';
+import '../models/review.dart';
 import '../services/order_service.dart';
 import '../services/auth_service.dart';
+import '../services/review_service.dart';
 import '../utils/price_formatter.dart';
+import '../widgets/dynamic_island_notification.dart';
 import 'home_screen.dart';
 
 /// Màn hình xem lịch sử đơn hàng
@@ -19,6 +22,7 @@ class MyOrdersScreen extends StatefulWidget {
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   final OrderService _orderService = OrderService();
   final AuthService _authService = AuthService();
+  final ReviewService _reviewService = ReviewService();
 
   @override
   Widget build(BuildContext context) {
@@ -479,6 +483,46 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
+                                  // Review button for completed orders
+                                  if (order.status == 'Completed')
+                                    FutureBuilder<bool>(
+                                      future: _reviewService.hasReviewed(
+                                        _authService.currentUser?.uid ?? '',
+                                        item.productId,
+                                      ),
+                                      builder: (context, snapshot) {
+                                        final hasReviewed =
+                                            snapshot.data ?? false;
+                                        return TextButton.icon(
+                                          onPressed:
+                                              hasReviewed
+                                                  ? null
+                                                  : () =>
+                                                      _showReviewDialog(item),
+                                          icon: Icon(
+                                            hasReviewed
+                                                ? Icons.check_circle
+                                                : Icons.rate_review_outlined,
+                                            size: 16,
+                                          ),
+                                          label: Text(
+                                            hasReviewed
+                                                ? 'Đã đánh giá'
+                                                : 'Đánh giá',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: const Size(0, 30),
+                                            tapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                 ],
                               ),
                             ),
@@ -635,5 +679,130 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   String _formatPrice(double price) {
     return formatVietnamPrice(price);
+  }
+
+  void _showReviewDialog(OrderItem item) {
+    int selectedRating = 5;
+    final commentController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Đánh giá sản phẩm',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.productName,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 24),
+                  // Star Rating
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() => selectedRating = index + 1);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(
+                            index < selectedRating
+                                ? Icons.star
+                                : Icons.star_border,
+                            size: 40,
+                            color: AppColors.starFilled,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 24),
+                  // Comment
+                  TextField(
+                    controller: commentController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập nhận xét của bạn (tùy chọn)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final user = _authService.currentUser;
+                        if (user == null) return;
+
+                        final review = Review(
+                          id: '',
+                          productId: item.productId,
+                          userId: user.uid,
+                          userName: user.displayName ?? 'Người dùng',
+                          userPhotoUrl: user.photoURL,
+                          rating: selectedRating,
+                          comment:
+                              commentController.text.trim().isNotEmpty
+                                  ? commentController.text.trim()
+                                  : null,
+                          createdAt: DateTime.now(),
+                        );
+
+                        try {
+                          await _reviewService.add(review);
+                          Navigator.pop(context);
+                          setState(() {}); // Refresh
+                          dynamicIsland.showSuccess(
+                            context,
+                            'Cảm ơn bạn đã đánh giá!',
+                          );
+                        } catch (e) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Gửi đánh giá'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

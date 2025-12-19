@@ -6,6 +6,7 @@ import '../services/wishlist_service.dart';
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
 import '../utils/price_formatter.dart';
+import '../utils/responsive_utils.dart';
 import 'product_detail_screen.dart';
 import 'login_screen.dart';
 
@@ -154,10 +155,14 @@ class _WishlistScreenState extends State<WishlistScreen> {
         }
 
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.68,
+          padding: EdgeInsets.all(
+            ResponsiveUtils.getHorizontalPadding(context),
+          ),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: ResponsiveUtils.getProductGridColumns(context),
+            childAspectRatio: ResponsiveUtils.getProductCardAspectRatio(
+              context,
+            ),
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),

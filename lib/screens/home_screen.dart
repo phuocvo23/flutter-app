@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_styles.dart';
@@ -10,6 +11,7 @@ import '../widgets/product_card.dart';
 import '../widgets/category_card.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/custom_search_bar.dart';
+import '../utils/responsive_utils.dart';
 import 'product_list_screen.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
@@ -31,6 +33,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+
+  // Banner auto-scroll
+  final PageController _bannerController = PageController();
+  Timer? _bannerTimer;
+  int _currentBannerIndex = 0;
+  int _bannerCount = 0;
 
   final ProductService _productService = ProductService();
   final CategoryService _categoryService = CategoryService();
@@ -71,7 +79,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _pageController.dispose();
     _fadeController.dispose();
+    _bannerController.dispose();
+    _bannerTimer?.cancel();
     super.dispose();
+  }
+
+  void _startBannerAutoScroll() {
+    _bannerTimer?.cancel();
+    _bannerTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (_bannerCount > 1) {
+        _currentBannerIndex = (_currentBannerIndex + 1) % _bannerCount;
+        if (_bannerController.hasClients) {
+          _bannerController.animateToPage(
+            _currentBannerIndex,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
   }
 
   void _onTabTapped(int index) {
@@ -263,18 +289,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   );
                 }
                 final products = snapshot.data!;
+                final columns = ResponsiveUtils.getProductGridColumns(context);
+                final padding = ResponsiveUtils.getHorizontalPadding(context);
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.symmetric(horizontal: padding),
                   child: GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.68,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      childAspectRatio:
+                          ResponsiveUtils.getProductCardAspectRatio(context),
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
@@ -316,18 +344,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   );
                 }
                 final products = snapshot.data!;
+                final columns = ResponsiveUtils.getProductGridColumns(context);
+                final padding = ResponsiveUtils.getHorizontalPadding(context);
                 return Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                  padding: EdgeInsets.fromLTRB(padding, 0, padding, 32),
                   child: GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.68,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      childAspectRatio:
+                          ResponsiveUtils.getProductCardAspectRatio(context),
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
@@ -375,11 +405,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   return const Center(child: Text('Không có danh mục'));
                 }
                 final categories = snapshot.data!;
+                final columns = ResponsiveUtils.getCategoryGridColumns(context);
+                final padding = ResponsiveUtils.getHorizontalPadding(context);
                 return GridView.builder(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  padding: EdgeInsets.fromLTRB(padding, 0, padding, 20),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
                     childAspectRatio: 1.4,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
@@ -570,86 +602,127 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBannerCarousel(List<HeroBanner> banners) {
-    return SizedBox(
-      height: 160,
-      child: PageView.builder(
-        itemCount: banners.length,
-        controller: PageController(viewportFraction: 1.0),
-        itemBuilder: (context, index) {
-          final banner = banners[index];
-          return GestureDetector(
-            onTap: () => _handleBannerTap(banner),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: BoxDecoration(
-                borderRadius: AppStyles.borderRadiusXl,
-                image: DecorationImage(
-                  image: NetworkImage(banner.imageUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: AppStyles.borderRadiusXl,
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+    // Update banner count and start auto-scroll
+    if (_bannerCount != banners.length) {
+      _bannerCount = banners.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startBannerAutoScroll();
+      });
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 160,
+          child: PageView.builder(
+            controller: _bannerController,
+            itemCount: banners.length,
+            onPageChanged: (index) {
+              setState(() => _currentBannerIndex = index);
+            },
+            itemBuilder: (context, index) {
+              final banner = banners[index];
+              return GestureDetector(
+                onTap: () => _handleBannerTap(banner),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    borderRadius: AppStyles.borderRadiusXl,
+                    image: DecorationImage(
+                      image: NetworkImage(banner.imageUrl),
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      banner.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: AppStyles.borderRadiusXl,
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.black.withOpacity(0.6),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
-                    if (banner.subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        banner.subtitle,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
-                    if (banner.buttonText.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          banner.buttonText,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          banner.title,
                           style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (banner.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            banner.subtitle,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                            maxLines: 2,
+                          ),
+                        ],
+                        if (banner.buttonText.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              banner.buttonText,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              );
+            },
+          ),
+        ),
+        // Page indicator dots
+        if (banners.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(banners.length, (index) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentBannerIndex == index ? 20 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color:
+                        _currentBannerIndex == index
+                            ? AppColors.primary
+                            : AppColors.divider,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              }),
             ),
-          );
-        },
-      ),
+          ),
+      ],
     );
   }
 

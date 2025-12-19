@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../config/admin_theme.dart';
 import '../../models/order.dart';
 import '../../services/order_service.dart';
-import '../../services/csv_service.dart';
 
 /// Orders Management Screen
 class OrdersScreen extends StatefulWidget {
@@ -16,7 +15,6 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   String _statusFilter = 'All';
   final OrderService _orderService = OrderService();
-  final CsvService _csvService = CsvService();
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +35,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ),
               ),
               const Spacer(),
-              OutlinedButton.icon(
-                onPressed: _exportOrdersCsv,
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('Export CSV'),
-              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -358,22 +351,5 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ],
       ),
     );
-  }
-
-  void _exportOrdersCsv() async {
-    try {
-      final success = await _csvService.downloadOrdersCsv();
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Orders exported successfully!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
-      }
-    }
   }
 }

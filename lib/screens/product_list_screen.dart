@@ -5,6 +5,7 @@ import '../models/cart_item.dart';
 import '../services/product_service.dart';
 import '../widgets/product_card.dart';
 import '../widgets/custom_search_bar.dart';
+import '../utils/responsive_utils.dart';
 import 'product_detail_screen.dart';
 
 /// Màn hình danh sách sản phẩm theo category
@@ -149,11 +150,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           child: Text('Không có sản phẩm trong danh mục này'),
                         )
                         : GridView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: ResponsiveUtils.getHorizontalPadding(
+                              context,
+                            ),
+                          ),
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.65,
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount:
+                                    ResponsiveUtils.getProductGridColumns(
+                                      context,
+                                    ),
+                                childAspectRatio:
+                                    ResponsiveUtils.getProductCardAspectRatio(
+                                      context,
+                                    ),
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),

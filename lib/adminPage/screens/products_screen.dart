@@ -5,7 +5,6 @@ import '../widgets/admin_image_picker.dart';
 import '../../models/product.dart';
 import '../../services/product_service.dart';
 import '../../services/category_service.dart';
-import '../../services/csv_service.dart';
 import '../../models/category.dart';
 
 /// Products Management Screen
@@ -20,7 +19,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
   final _searchController = TextEditingController();
   final ProductService _productService = ProductService();
   final CategoryService _categoryService = CategoryService();
-  final CsvService _csvService = CsvService();
 
   @override
   Widget build(BuildContext context) {
@@ -41,20 +39,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ),
               ),
               const Spacer(),
-              // Export CSV
-              OutlinedButton.icon(
-                onPressed: _exportCsv,
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('Export CSV'),
-              ),
-              const SizedBox(width: 8),
-              // Import CSV
-              OutlinedButton.icon(
-                onPressed: _importCsv,
-                icon: const Icon(Icons.upload, size: 18),
-                label: const Text('Import CSV'),
-              ),
-              const SizedBox(width: 8),
               // Add Product
               ElevatedButton.icon(
                 onPressed: _showAddProductDialog,
@@ -245,6 +229,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final imageUrlController = TextEditingController(
       text: product?.imageUrl ?? '',
     );
+    final sizesController = TextEditingController(
+      text: product?.sizes.join(', ') ?? '',
+    );
+    final colorsController = TextEditingController(
+      text: product?.colors.join(', ') ?? '',
+    );
     String? selectedCategory = product?.category;
     bool isFeatured = product?.isFeatured ?? false;
     bool isNew = product?.isNew ?? false;
@@ -364,6 +354,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             keyboardType: TextInputType.number,
                           ),
                           const SizedBox(height: 16),
+                          TextField(
+                            controller: sizesController,
+                            decoration: const InputDecoration(
+                              labelText: 'Sizes (comma-separated)',
+                              hintText: 'e.g., S, M, L, XL',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: colorsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Colors (comma-separated)',
+                              hintText: 'e.g., Đen, Đỏ, Trắng',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           Row(
                             children: [
                               Checkbox(
@@ -429,8 +435,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           isNew: isNew,
                           rating: product?.rating ?? 0,
                           reviewCount: product?.reviewCount ?? 0,
-                          sizes: product?.sizes ?? [],
-                          colors: product?.colors ?? [],
+                          sizes:
+                              sizesController.text
+                                  .split(',')
+                                  .map((s) => s.trim())
+                                  .where((s) => s.isNotEmpty)
+                                  .toList(),
+                          colors:
+                              colorsController.text
+                                  .split(',')
+                                  .map((s) => s.trim())
+                                  .where((s) => s.isNotEmpty)
+                                  .toList(),
                           createdAt: product?.createdAt,
                         );
 
@@ -493,39 +509,5 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ],
           ),
     );
-  }
-
-  void _exportCsv() async {
-    try {
-      final success = await _csvService.downloadProductsCsv();
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('CSV exported successfully!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
-      }
-    }
-  }
-
-  void _importCsv() async {
-    try {
-      final count = await _csvService.importProductsFromCsv();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Imported $count products!')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
-      }
-    }
   }
 }

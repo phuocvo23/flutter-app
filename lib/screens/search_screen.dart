@@ -3,6 +3,7 @@ import '../config/app_colors.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../widgets/product_card.dart';
+import '../utils/responsive_utils.dart';
 import 'product_detail_screen.dart';
 
 /// Màn hình tìm kiếm sản phẩm
@@ -201,10 +202,14 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.65,
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveUtils.getHorizontalPadding(context),
+            ),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: ResponsiveUtils.getProductGridColumns(context),
+              childAspectRatio: ResponsiveUtils.getProductCardAspectRatio(
+                context,
+              ),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
