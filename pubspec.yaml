@@ -29,6 +29,7 @@ dependencies:
   desktop_drop: ^0.7.0
   super_clipboard: ^0.9.1
   google_fonts: ^6.2.1
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

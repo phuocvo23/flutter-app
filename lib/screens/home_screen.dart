@@ -86,16 +86,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _startBannerAutoScroll() {
     _bannerTimer?.cancel();
-    _bannerTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (_bannerCount > 1) {
+    _bannerTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_bannerCount > 1 && _bannerController.hasClients) {
         _currentBannerIndex = (_currentBannerIndex + 1) % _bannerCount;
-        if (_bannerController.hasClients) {
-          _bannerController.animateToPage(
-            _currentBannerIndex,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-          );
-        }
+        _bannerController.animateToPage(
+          _currentBannerIndex,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
       }
     });
   }
@@ -699,28 +697,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             },
           ),
         ),
-        // Page indicator dots
+        // Page indicator dots - sử dụng StreamBuilder để rebuild độc lập
         if (banners.length > 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(banners.length, (index) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentBannerIndex == index ? 20 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color:
-                        _currentBannerIndex == index
-                            ? AppColors.primary
-                            : AppColors.divider,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                );
-              }),
+          StreamBuilder<int>(
+            stream: Stream.periodic(
+              const Duration(milliseconds: 100),
+              (_) => _currentBannerIndex,
             ),
+            builder: (context, snapshot) {
+              final currentIndex = snapshot.data ?? _currentBannerIndex;
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(banners.length, (index) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: currentIndex == index ? 20 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color:
+                            currentIndex == index
+                                ? AppColors.primary
+                                : AppColors.divider,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
+              );
+            },
           ),
       ],
     );
