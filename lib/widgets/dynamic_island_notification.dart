@@ -15,7 +15,7 @@ class DynamicIslandNotification extends StatefulWidget {
     required this.message,
     this.icon,
     this.backgroundColor,
-    this.duration = const Duration(seconds: 5),
+    this.duration = const Duration(seconds: 2),
     this.onDismiss,
   });
 
@@ -209,7 +209,7 @@ class DynamicIslandService {
     required String message,
     IconData? icon,
     Color? backgroundColor,
-    Duration duration = const Duration(seconds: 5),
+    Duration duration = const Duration(seconds: 2),
   }) {
     // Remove existing notification
     _currentOverlay?.remove();

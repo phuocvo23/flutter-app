@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../utils/price_formatter.dart';
+import '../services/momo_payment_service.dart';
 
-/// Màn hình thanh toán MoMo trực tiếp (không qua API)
-class MomoPaymentScreen extends StatelessWidget {
+/// Màn hình thanh toán MoMo qua API
+class MomoPaymentScreen extends StatefulWidget {
   final double amount;
   final String orderId;
   final VoidCallback onPaymentConfirmed;
@@ -18,16 +17,116 @@ class MomoPaymentScreen extends StatelessWidget {
     required this.onPaymentConfirmed,
   });
 
-  // Số MoMo nhận tiền
-  static const String momoPhone = '0898924277';
-  static const String momoName = 'Fuot Shop';
+  @override
+  State<MomoPaymentScreen> createState() => _MomoPaymentScreenState();
+}
+
+class _MomoPaymentScreenState extends State<MomoPaymentScreen>
+    with WidgetsBindingObserver {
+  final MomoPaymentService _momoService = MomoPaymentService();
+
+  bool _isLoading = false;
+  bool _isCheckingStatus = false;
+  String? _errorMessage;
+  String? _requestId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Kiểm tra trạng thái thanh toán khi user quay lại app
+    if (state == AppLifecycleState.resumed && _requestId != null) {
+      _checkPaymentStatus();
+    }
+  }
+
+  /// Tạo thanh toán MoMo
+  Future<void> _createPayment() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final response = await _momoService.createPayment(
+      orderId: widget.orderId,
+      orderInfo: 'Thanh toán đơn hàng #${widget.orderId}',
+      amount: widget.amount.toInt(),
+    );
+
+    setState(() {
+      _isLoading = false;
+      _requestId = response.requestId;
+    });
+
+    if (response.isSuccess && response.payUrl != null) {
+      // Mở trang thanh toán MoMo
+      await _momoService.openPaymentPage(response.payUrl!);
+    } else {
+      setState(() {
+        _errorMessage = response.message;
+      });
+    }
+  }
+
+  /// Kiểm tra trạng thái thanh toán
+  Future<void> _checkPaymentStatus() async {
+    if (_requestId == null) return;
+
+    setState(() => _isCheckingStatus = true);
+
+    final status = await _momoService.checkStatus(
+      orderId: widget.orderId,
+      requestId: _requestId!,
+    );
+
+    setState(() => _isCheckingStatus = false);
+
+    if (status.isSuccess) {
+      // Thanh toán thành công
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thanh toán thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onPaymentConfirmed();
+      }
+    } else if (status.isPending) {
+      // Đang xử lý
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Giao dịch đang được xử lý...'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } else {
+      // Thất bại
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thanh toán thất bại: ${status.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Tạo deep link MoMo
-    final momoDeeplink =
-        '2|99|$momoPhone|$momoName|${amount.toInt()}|Thanh toan don hang $orderId';
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -89,78 +188,19 @@ class MomoPaymentScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _formatPrice(amount),
+                    formatVietnamPrice(widget.amount),
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFB0006D),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // QR Code
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Quét mã QR bằng app MoMo',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  const SizedBox(height: 16),
-                  QrImageView(
-                    data: momoDeeplink,
-                    version: QrVersions.auto,
-                    size: 200,
-                    backgroundColor: Colors.white,
-                    eyeStyle: const QrEyeStyle(
-                      color: Color(0xFFB0006D),
-                      eyeShape: QrEyeShape.square,
-                    ),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      color: Color(0xFFB0006D),
-                      dataModuleShape: QrDataModuleShape.square,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Hoặc',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 12),
-                  // Open MoMo App button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _openMomoApp(context),
-                      icon: const Icon(Icons.open_in_new, color: Colors.white),
-                      label: const Text(
-                        'Mở App MoMo',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFB0006D),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Mã đơn: ${widget.orderId}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -168,35 +208,69 @@ class MomoPaymentScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Transfer info
+            // Error message
+            if (_errorMessage != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Instructions
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Chuyển tiền thủ công',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Hướng dẫn thanh toán',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Số điện thoại:', momoPhone, context),
                   const SizedBox(height: 12),
-                  _buildInfoRow('Tên:', momoName, context),
-                  const SizedBox(height: 12),
-                  _buildInfoRow('Số tiền:', _formatPrice(amount), context),
-                  const SizedBox(height: 12),
-                  _buildInfoRow('Nội dung:', 'DH$orderId', context),
+                  _buildStep('1', 'Nhấn "Thanh toán ngay" để mở ứng dụng MoMo'),
+                  _buildStep('2', 'Xác nhận thanh toán trong app MoMo'),
+                  _buildStep(
+                    '3',
+                    'Quay lại ứng dụng, hệ thống sẽ tự động xác nhận',
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            // Instructions
+            // Config notice
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -207,12 +281,15 @@ class MomoPaymentScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.amber.shade700),
+                  Icon(Icons.warning_amber, color: Colors.amber.shade700),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Sau khi chuyển tiền xong, nhấn "Đã thanh toán" để xác nhận đơn hàng.',
-                      style: TextStyle(fontSize: 13),
+                      'Cần cấu hình MoMo Business (PartnerCode, AccessKey, SecretKey) trong momo_payment_service.dart',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.amber.shade800,
+                      ),
                     ),
                   ),
                 ],
@@ -220,28 +297,67 @@ class MomoPaymentScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // Confirm button
+            // Payment button
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: onPaymentConfirmed,
+                onPressed: _isLoading ? null : _createPayment,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFB0006D),
+                  disabledBackgroundColor: Colors.grey.shade300,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
-                  'Đã thanh toán',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Text(
+                          'Thanh toán ngay',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Check status button
+            if (_requestId != null)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: _isCheckingStatus ? null : _checkPaymentStatus,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFB0006D)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child:
+                      _isCheckingStatus
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Text(
+                            'Kiểm tra trạng thái thanh toán',
+                            style: TextStyle(color: Color(0xFFB0006D)),
+                          ),
+                ),
+              ),
             const SizedBox(height: 12),
 
             // Cancel button
@@ -258,77 +374,36 @@ class MomoPaymentScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary)),
-        Row(
-          children: [
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: value));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Đã sao chép: $value'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              },
-              child: const Icon(
-                Icons.copy,
-                size: 18,
-                color: AppColors.textSecondary,
+  Widget _buildStep(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.blue.shade700,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ],
-        ),
-      ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(text, style: TextStyle(color: Colors.blue.shade800)),
+          ),
+        ],
+      ),
     );
-  }
-
-  String _formatPrice(double price) {
-    return formatVietnamPrice(price);
-  }
-
-  /// Mở app MoMo với thông tin thanh toán
-  Future<void> _openMomoApp(BuildContext context) async {
-    // MoMo deep link format
-    final momoUri = Uri.parse(
-      'momo://app?action=payWithApp'
-      '&partner=merchant'
-      '&appScheme=momopayment'
-      '&amount=${amount.toInt()}'
-      '&description=DH$orderId',
-    );
-
-    // Fallback to MoMo website
-    final momoWebUri = Uri.parse('https://me.momo.vn/$momoPhone');
-
-    try {
-      if (await canLaunchUrl(momoUri)) {
-        await launchUrl(momoUri, mode: LaunchMode.externalApplication);
-      } else if (await canLaunchUrl(momoWebUri)) {
-        await launchUrl(momoWebUri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Không tìm thấy app MoMo. Vui lòng quét QR hoặc chuyển thủ công.',
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
-    }
   }
 }
